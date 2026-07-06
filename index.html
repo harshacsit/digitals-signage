@@ -33,15 +33,15 @@
     cursor: pointer; font-weight: 600;
   }
   button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
   input, select {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
     padding: 9px 12px; border-radius: 8px; font-size: 0.9rem;
   }
-  main { max-width: 1100px; margin: 0 auto; padding: 28px; }
+  main { max-width: 1000px; margin: 0 auto; padding: 28px; }
   section { margin-bottom: 40px; }
   section h2 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; }
 
+  /* Login */
   #loginBox {
     max-width: 360px; margin: 80px auto; padding: 32px;
     background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
@@ -50,11 +50,10 @@
   #loginBox button { width: 100%; }
   #loginError { color: var(--red); font-size: 0.85rem; margin-top: 8px; min-height: 18px; }
 
-  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  /* Add screen form */
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
-  .toolbar .filters { display: flex; gap: 8px; }
-
+  /* Screens table */
   table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; }
   th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
   th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
@@ -62,19 +61,11 @@
   .dot.online { background: var(--green); }
   .dot.offline { background: var(--red); }
 
-  .bulkBar {
-    display: none; align-items: center; gap: 10px; background: var(--panel-2);
-    border: 1px solid var(--accent); padding: 10px 16px; border-radius: 8px; margin-bottom: 14px;
-  }
-  .bulkBar.visible { display: flex; }
-  .bulkBar span { color: var(--muted); font-size: 0.85rem; }
-
+  /* Playlist builder */
   #playlistItems { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
   .item-row { display: flex; gap: 8px; align-items: center; background: var(--panel-2); padding: 8px 10px; border-radius: 8px; }
   .item-row input { flex: 1; }
   .item-row button { background: var(--red); padding: 6px 10px; }
-
-  .badge { background: var(--panel-2); color: var(--muted); font-size: 0.75rem; padding: 3px 8px; border-radius: 6px; }
 
   #app { display: none; }
 </style>
@@ -104,41 +95,15 @@
         <div class="row">
           <input id="pairCode" placeholder="Pairing code (e.g. K7QX2M)" style="text-transform:uppercase" />
           <input id="pairName" placeholder="Screen name (e.g. Mall Entrance)" />
-          <input id="pairLocation" placeholder="Location / group (e.g. Delhi Store)" />
           <button onclick="addScreen()">Pair screen</button>
         </div>
       </section>
 
       <section>
         <h2>Screens</h2>
-
-        <div class="toolbar">
-          <div class="filters">
-            <select id="locationFilter" onchange="renderScreens()">
-              <option value="">All locations</option>
-            </select>
-            <select id="statusFilter" onchange="renderScreens()">
-              <option value="">All statuses</option>
-              <option value="online">Online only</option>
-              <option value="offline">Offline only</option>
-            </select>
-          </div>
-          <span class="badge" id="lastRefreshed">live</span>
-        </div>
-
-        <div class="bulkBar" id="bulkBar">
-          <span id="bulkCount">0 selected</span>
-          <select id="bulkPlaylistSelect"><option value="">— assign playlist —</option></select>
-          <button onclick="applyBulkPlaylist()">Apply to selected</button>
-          <button class="secondary" onclick="clearSelection()">Clear</button>
-        </div>
-
         <table>
           <thead>
-            <tr>
-              <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" /></th>
-              <th>Status</th><th>Name</th><th>Location</th><th>Playlist</th><th>Last seen</th><th></th>
-            </tr>
+            <tr><th>Status</th><th>Name</th><th>Playlist</th><th>Last seen</th><th></th></tr>
           </thead>
           <tbody id="screensBody"></tbody>
         </table>
@@ -164,7 +129,7 @@
 
   <script>
   // ===================== CONFIG =====================
-  const firebaseConfig = {
+ const firebaseConfig = {
   apiKey: "AIzaSyBq6nQFLJBQvEdOUjg7KtzpaWZ4H1reb6c",
   authDomain: "my-signage-app-d0b8a.firebaseapp.com",
   projectId: "my-signage-app-d0b8a",
@@ -173,6 +138,7 @@
   appId: "1:1004716989793:web:bba0b9234929e3373e3920",
   measurementId: "G-Y8X4WK2YS5"
 };
+
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
@@ -195,16 +161,18 @@
     }
   });
 
-  // ===================== STATE =====================
-  let playlistsCache = [];
-  let screensCache = [];
-  let selectedScreenIds = new Set();
-
   // ===================== SCREENS =====================
+  let playlistsCache = [];
+  // FIX: keep a map of doc.id -> <tr> element so we can update rows in place
+  // instead of wiping and rebuilding the whole table on every snapshot.
+  // That full rebuild was destroying the open <select> mid-click when you
+  // tried to assign a playlist, right as some other screen's heartbeat came in.
+  let screenRows = {};
+  let screenDataCache = {}; // doc.id -> latest screen data, used to re-render dropdowns when playlists change
+
   function addScreen() {
     const code = document.getElementById("pairCode").value.trim().toUpperCase();
     const name = document.getElementById("pairName").value.trim();
-    const location = document.getElementById("pairLocation").value.trim();
     if (!code || !name) return alert("Enter both the pairing code and a name.");
 
     const ref = db.collection("screens").doc(code);
@@ -213,88 +181,67 @@
         alert("No screen found with that code. Make sure the TV is showing this exact code.");
         return;
       }
-      ref.update({ status: "paired", name: name, location: location || "Unassigned" })
+      ref.update({ status: "paired", name: name })
         .then(() => {
           document.getElementById("pairCode").value = "";
           document.getElementById("pairName").value = "";
-          document.getElementById("pairLocation").value = "";
         });
     });
   }
 
   function watchScreens() {
     db.collection("screens").onSnapshot(snapshot => {
-      screensCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      updateLocationFilterOptions();
-      renderScreens();
-      document.getElementById("lastRefreshed").textContent =
-        "updated " + new Date().toLocaleTimeString();
+      document.getElementById("screenCount").textContent = snapshot.size + " screens";
+
+      snapshot.docChanges().forEach(change => {
+        const doc = change.doc;
+
+        if (change.type === "removed") {
+          if (screenRows[doc.id]) {
+            screenRows[doc.id].remove();
+            delete screenRows[doc.id];
+          }
+          delete screenDataCache[doc.id];
+          return;
+        }
+
+        const s = doc.data();
+        screenDataCache[doc.id] = s;
+        renderScreenRow(doc.id, s);
+      });
     });
   }
 
-  function updateLocationFilterOptions() {
-    const select = document.getElementById("locationFilter");
-    const current = select.value;
-    const locations = [...new Set(screensCache.map(s => s.location || "Unassigned"))].sort();
-    select.innerHTML = '<option value="">All locations</option>' +
-      locations.map(l => `<option value="${l}">${l}</option>`).join("");
-    select.value = current;
-  }
-
-  function isOnline(s) {
+  function renderScreenRow(docId, s) {
     const lastSeenMs = s.lastSeen ? s.lastSeen.toMillis() : 0;
-    return Date.now() - lastSeenMs < 120000; // seen in last 2 min
-  }
+    const isOnline = Date.now() - lastSeenMs < 120000; // seen in last 2 min
 
-  function renderScreens() {
-    const locationFilter = document.getElementById("locationFilter").value;
-    const statusFilter = document.getElementById("statusFilter").value;
+    let tr = screenRows[docId];
+    if (!tr) {
+      tr = document.createElement("tr");
+      screenRows[docId] = tr;
+      document.getElementById("screensBody").appendChild(tr);
+    }
 
-    let filtered = screensCache.filter(s => {
-      if (locationFilter && (s.location || "Unassigned") !== locationFilter) return false;
-      if (statusFilter === "online" && !isOnline(s)) return false;
-      if (statusFilter === "offline" && isOnline(s)) return false;
-      return true;
-    });
+    // FIX: don't touch the playlist <select> while the user currently has it
+    // focused/open — otherwise picking an option can get wiped mid-click.
+    const activeSelect = tr.querySelector("select.playlistSelect");
+    const isEditingThisRow = activeSelect && document.activeElement === activeSelect;
 
-    // Offline-first sorting so problems surface immediately
-    filtered.sort((a, b) => Number(isOnline(a)) - Number(isOnline(b)));
-
-    document.getElementById("screenCount").textContent = filtered.length + " screens";
-
-    const body = document.getElementById("screensBody");
-    body.innerHTML = "";
-
-    filtered.forEach(s => {
-      const online = isOnline(s);
-      const lastSeenMs = s.lastSeen ? s.lastSeen.toMillis() : 0;
-      const checked = selectedScreenIds.has(s.id) ? "checked" : "";
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td><input type="checkbox" data-id="${s.id}" ${checked} onchange="toggleSelect('${s.id}', this.checked)" /></td>
-        <td><span class="dot ${online ? 'online' : 'offline'}"></span>${online ? 'Online' : 'Offline'}</td>
-        <td>${s.name || '(unnamed - ' + s.id + ')'}</td>
-        <td>${s.location || 'Unassigned'}</td>
-        <td>${playlistDropdown(s.id, s.currentPlaylist)}</td>
-        <td>${lastSeenMs ? new Date(lastSeenMs).toLocaleTimeString() : '—'}</td>
-        <td>
-          <button class="secondary" onclick="sendCommand('${s.id}', 'refresh')" title="Reload content on this screen">Refresh</button>
-          <button class="secondary" onclick="sendCommand('${s.id}', 'reboot')" title="Restart the app on this screen">Reboot</button>
-          <button class="secondary" onclick="removeScreen('${s.id}')">Remove</button>
-        </td>
-      `;
-      body.appendChild(tr);
-    });
-
-    updateBulkBar();
+    tr.innerHTML = `
+      <td><span class="dot ${isOnline ? 'online' : 'offline'}"></span>${isOnline ? 'Online' : 'Offline'}</td>
+      <td>${s.name || '(unnamed - ' + docId + ')'}</td>
+      <td>${isEditingThisRow ? activeSelect.outerHTML : playlistDropdown(docId, s.currentPlaylist)}</td>
+      <td>${lastSeenMs ? new Date(lastSeenMs).toLocaleTimeString() : '—'}</td>
+      <td><button class="secondary" onclick="removeScreen('${docId}')">Remove</button></td>
+    `;
   }
 
   function playlistDropdown(screenId, currentPlaylistId) {
     const options = playlistsCache.map(p =>
       `<option value="${p.id}" ${p.id === currentPlaylistId ? 'selected' : ''}>${p.name}</option>`
     ).join("");
-    return `<select onchange="assignPlaylist('${screenId}', this.value)">
+    return `<select class="playlistSelect" onchange="assignPlaylist('${screenId}', this.value)">
               <option value="">— none —</option>${options}
             </select>`;
   }
@@ -303,70 +250,20 @@
     db.collection("screens").doc(screenId).update({ currentPlaylist: playlistId || null });
   }
 
-  function sendCommand(screenId, command) {
-    const label = command === "reboot" ? "reboot" : "refresh content on";
-    if (!confirm(`Send a remote ${label} to this screen?`)) return;
-    db.collection("screens").doc(screenId).update({ command: command });
-  }
-
   function removeScreen(screenId) {
     if (!confirm("Remove this screen? The device will show the pairing screen again.")) return;
     db.collection("screens").doc(screenId).update({ status: "unpaired", currentPlaylist: null, name: null });
-    selectedScreenIds.delete(screenId);
-  }
-
-  // ===================== SELECTION / BULK ACTIONS =====================
-  function toggleSelect(id, checked) {
-    if (checked) selectedScreenIds.add(id); else selectedScreenIds.delete(id);
-    updateBulkBar();
-  }
-
-  function toggleSelectAll(checkbox) {
-    const rows = document.querySelectorAll('#screensBody input[type="checkbox"]');
-    rows.forEach(r => {
-      r.checked = checkbox.checked;
-      const id = r.getAttribute("data-id");
-      if (checkbox.checked) selectedScreenIds.add(id); else selectedScreenIds.delete(id);
-    });
-    updateBulkBar();
-  }
-
-  function clearSelection() {
-    selectedScreenIds.clear();
-    renderScreens();
-  }
-
-  function updateBulkBar() {
-    const bar = document.getElementById("bulkBar");
-    const count = selectedScreenIds.size;
-    document.getElementById("bulkCount").textContent = count + " selected";
-    bar.classList.toggle("visible", count > 0);
-
-    const select = document.getElementById("bulkPlaylistSelect");
-    select.innerHTML = '<option value="">— assign playlist —</option>' +
-      playlistsCache.map(p => `<option value="${p.id}">${p.name}</option>`).join("");
-  }
-
-  function applyBulkPlaylist() {
-    const playlistId = document.getElementById("bulkPlaylistSelect").value;
-    if (!playlistId) return alert("Choose a playlist first.");
-    if (selectedScreenIds.size === 0) return;
-
-    const batch = db.batch();
-    selectedScreenIds.forEach(id => {
-      batch.update(db.collection("screens").doc(id), { currentPlaylist: playlistId });
-    });
-    batch.commit().then(() => {
-      alert(`Assigned playlist to ${selectedScreenIds.size} screen(s).`);
-      clearSelection();
-    });
   }
 
   // ===================== PLAYLISTS =====================
   function watchPlaylists() {
     db.collection("playlists").onSnapshot(snapshot => {
       playlistsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderScreens();
+      // Playlist names/list changed -> refresh every row's dropdown options
+      // (but still skip any row whose dropdown is actively focused).
+      Object.keys(screenDataCache).forEach(docId => {
+        renderScreenRow(docId, screenDataCache[docId]);
+      });
     });
   }
 
@@ -379,7 +276,7 @@
         <option value="image">Image</option>
         <option value="video">Video</option>
       </select>
-      <input class="itemUrl" placeholder="Media URL (GitHub raw / Imgur / Drive link)" />
+      <input class="itemUrl" placeholder="Media URL (from Firebase Storage)" />
       <input class="itemDuration" type="number" placeholder="Seconds (images only)" value="8" style="width:120px" />
       <button onclick="this.parentElement.remove()">✕</button>
     `;
@@ -407,6 +304,7 @@
       });
   }
 
+  // Start with one empty item row visible
   addPlaylistItemRow();
   </script>
 </body>
