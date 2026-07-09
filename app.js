@@ -1,0 +1,177 @@
+// ===================== CONFIG =====================
+const firebaseConfig = {
+  apiKey: "AIzaSyBq6nQFLJBQvEdOUjg7KtzpaWZ4H1reb6c",
+  authDomain: "my-signage-app-d0b8a.firebaseapp.com",
+  projectId: "my-signage-app-d0b8a",
+  storageBucket: "my-signage-app-d0b8a.firebasestorage.app",
+  messagingSenderId: "1004716989793",
+  appId: "1:1004716989793:web:bba0b9234929e3373e3920",
+  measurementId: "G-Y8X4WK2YS5"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ===================== NAVIGATION (new — UI only, no logic change) =====================
+function switchView(viewId, btn) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById(viewId).classList.add("active");
+  document.querySelectorAll(".navBtn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+// ===================== AUTH =====================
+function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  auth.signInWithEmailAndPassword(email, password)
+    .catch(err => document.getElementById("loginError").textContent = err.message);
+}
+function logout() { auth.signOut(); }
+
+auth.onAuthStateChanged(user => {
+  document.getElementById("loginBox").style.display = user ? "none" : "block";
+  document.getElementById("app").style.display = user ? "block" : "none";
+  if (user) {
+    watchScreens();
+    watchPlaylists();
+  }
+});
+
+// ===================== SCREENS =====================
+let playlistsCache = [];
+let screenRows = {};
+let screenDataCache = {};
+
+function addScreen() {
+  const code = document.getElementById("pairCode").value.trim().toUpperCase();
+  const name = document.getElementById("pairName").value.trim();
+  if (!code || !name) return alert("Enter both the pairing code and a name.");
+
+  const ref = db.collection("screens").doc(code);
+  ref.get().then(doc => {
+    if (!doc.exists) {
+      alert("No screen found with that code. Make sure the TV is showing this exact code.");
+      return;
+    }
+    ref.update({ status: "paired", name: name })
+      .then(() => {
+        document.getElementById("pairCode").value = "";
+        document.getElementById("pairName").value = "";
+      });
+  });
+}
+
+function watchScreens() {
+  db.collection("screens").onSnapshot(snapshot => {
+    document.getElementById("screenCount").textContent = snapshot.size + " screens";
+
+    snapshot.docChanges().forEach(change => {
+      const doc = change.doc;
+
+      if (change.type === "removed") {
+        if (screenRows[doc.id]) {
+          screenRows[doc.id].remove();
+          delete screenRows[doc.id];
+        }
+        delete screenDataCache[doc.id];
+        return;
+      }
+
+      const s = doc.data();
+      screenDataCache[doc.id] = s;
+      renderScreenRow(doc.id, s);
+    });
+  });
+}
+
+function renderScreenRow(docId, s) {
+  const lastSeenMs = s.lastSeen ? s.lastSeen.toMillis() : 0;
+  const isOnline = Date.now() - lastSeenMs < 120000;
+
+  let tr = screenRows[docId];
+  if (!tr) {
+    tr = document.createElement("tr");
+    screenRows[docId] = tr;
+    document.getElementById("screensBody").appendChild(tr);
+  }
+
+  const activeSelect = tr.querySelector("select.playlistSelect");
+  const isEditingThisRow = activeSelect && document.activeElement === activeSelect;
+
+  tr.innerHTML = `
+    <td><span class="dot ${isOnline ? 'online' : 'offline'}"></span>${isOnline ? 'Online' : 'Offline'}</td>
+    <td>${s.name || '(unnamed - ' + docId + ')'}</td>
+    <td>${isEditingThisRow ? activeSelect.outerHTML : playlistDropdown(docId, s.currentPlaylist)}</td>
+    <td>${lastSeenMs ? new Date(lastSeenMs).toLocaleTimeString() : '—'}</td>
+    <td><button class="secondary" onclick="removeScreen('${docId}')">Remove</button></td>
+  `;
+}
+
+function playlistDropdown(screenId, currentPlaylistId) {
+  const options = playlistsCache.map(p =>
+    `<option value="${p.id}" ${p.id === currentPlaylistId ? 'selected' : ''}>${p.name}</option>`
+  ).join("");
+  return `<select class="playlistSelect" onchange="assignPlaylist('${screenId}', this.value)">
+            <option value="">— none —</option>${options}
+          </select>`;
+}
+
+function assignPlaylist(screenId, playlistId) {
+  db.collection("screens").doc(screenId).update({ currentPlaylist: playlistId || null });
+}
+
+function removeScreen(screenId) {
+  if (!confirm("Remove this screen? The device will show the pairing screen again.")) return;
+  db.collection("screens").doc(screenId).update({ status: "unpaired", currentPlaylist: null, name: null });
+}
+
+// ===================== PLAYLISTS =====================
+function watchPlaylists() {
+  db.collection("playlists").onSnapshot(snapshot => {
+    playlistsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    Object.keys(screenDataCache).forEach(docId => {
+      renderScreenRow(docId, screenDataCache[docId]);
+    });
+  });
+}
+
+function addPlaylistItemRow() {
+  const container = document.getElementById("playlistItems");
+  const row = document.createElement("div");
+  row.className = "item-row";
+  row.innerHTML = `
+    <select class="itemType">
+      <option value="image">Image</option>
+      <option value="video">Video</option>
+    </select>
+    <input class="itemUrl" placeholder="Media URL" />
+    <input class="itemDuration" type="number" placeholder="Seconds (images only)" value="8" style="width:120px" />
+    <button onclick="this.parentElement.remove()">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function savePlaylist() {
+  const name = document.getElementById("playlistName").value.trim();
+  if (!name) return alert("Give the playlist a name.");
+
+  const rows = document.querySelectorAll("#playlistItems .item-row");
+  if (rows.length === 0) return alert("Add at least one item.");
+
+  const items = Array.from(rows).map(row => ({
+    type: row.querySelector(".itemType").value,
+    url: row.querySelector(".itemUrl").value.trim(),
+    durationSeconds: parseInt(row.querySelector(".itemDuration").value) || 8
+  }));
+
+  db.collection("playlists").add({ name, items, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
+    .then(() => {
+      document.getElementById("playlistName").value = "";
+      document.getElementById("playlistItems").innerHTML = "";
+      alert("Playlist saved. Assign it to a screen from the Screens section.");
+    });
+}
+
+addPlaylistItemRow();

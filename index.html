@@ -4,76 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Signage Dashboard</title>
-<style>
-  :root {
-    --bg: #0b0e14;
-    --panel: #131826;
-    --panel-2: #1a2138;
-    --border: #232b42;
-    --accent: #4f7cff;
-    --text: #eef1f8;
-    --muted: #7c88a6;
-    --green: #33c17a;
-    --red: #e2574c;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; font-family: 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg); color: var(--text); min-height: 100vh;
-  }
-  header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 28px; border-bottom: 1px solid var(--border);
-  }
-  header h1 { font-size: 1.2rem; font-weight: 600; }
-  header .sub { color: var(--muted); font-size: 0.85rem; }
-  button {
-    background: var(--accent); color: white; border: none;
-    padding: 10px 16px; border-radius: 8px; font-size: 0.9rem;
-    cursor: pointer; font-weight: 600;
-  }
-  button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
-  input, select {
-    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
-    padding: 9px 12px; border-radius: 8px; font-size: 0.9rem;
-  }
-  main { max-width: 1000px; margin: 0 auto; padding: 28px; }
-  section { margin-bottom: 40px; }
-  section h2 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; }
-
-  /* Login */
-  #loginBox {
-    max-width: 360px; margin: 80px auto; padding: 32px;
-    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-  }
-  #loginBox input { width: 100%; margin-bottom: 12px; }
-  #loginBox button { width: 100%; }
-  #loginError { color: var(--red); font-size: 0.85rem; margin-top: 8px; min-height: 18px; }
-
-  /* Add screen form */
-  .row { display: flex; gap: 10px; flex-wrap: wrap; }
-
-  /* Screens table */
-  table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; }
-  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-  .dot.online { background: var(--green); }
-  .dot.offline { background: var(--red); }
-
-  /* Playlist builder */
-  #playlistItems { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
-  .item-row { display: flex; gap: 8px; align-items: center; background: var(--panel-2); padding: 8px 10px; border-radius: 8px; }
-  .item-row input { flex: 1; }
-  .item-row button { background: var(--red); padding: 6px 10px; }
-
-  #app { display: none; }
-</style>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
   <div id="loginBox">
-    <h2 style="margin-top:0">Sign in</h2>
+    <h2>Sign in</h2>
     <input type="email" id="email" placeholder="Email" />
     <input type="password" id="password" placeholder="Password" />
     <button onclick="login()">Sign in</button>
@@ -81,231 +17,70 @@
   </div>
 
   <div id="app">
-    <header>
-      <div>
-        <h1>Signage Dashboard</h1>
-        <div class="sub" id="screenCount">0 screens</div>
-      </div>
-      <button class="secondary" onclick="logout()">Sign out</button>
-    </header>
+    <div class="appShell">
+      <aside class="sidebar">
+        <div class="brand">Signage</div>
+        <nav>
+          <button class="navBtn active" onclick="switchView('screensView', this)">🖥️ Screens</button>
+          <button class="navBtn" onclick="switchView('playlistsView', this)">🎬 Playlists</button>
+        </nav>
+        <button class="secondary signOutBtn" onclick="logout()">Sign out</button>
+      </aside>
 
-    <main>
-      <section>
-        <h2>Add a screen</h2>
-        <div class="row">
-          <input id="pairCode" placeholder="Pairing code (e.g. K7QX2M)" style="text-transform:uppercase" />
-          <input id="pairName" placeholder="Screen name (e.g. Mall Entrance)" />
-          <button onclick="addScreen()">Pair screen</button>
-        </div>
-      </section>
+      <main class="mainArea">
 
-      <section>
-        <h2>Screens</h2>
-        <table>
-          <thead>
-            <tr><th>Status</th><th>Name</th><th>Playlist</th><th>Last seen</th><th></th></tr>
-          </thead>
-          <tbody id="screensBody"></tbody>
-        </table>
-      </section>
+        <section id="screensView" class="view active">
+          <div class="pageHeader">
+            <h1>Screens</h1>
+            <div class="sub" id="screenCount">0 screens</div>
+          </div>
 
-      <section>
-        <h2>New playlist</h2>
-        <div class="row">
-          <input id="playlistName" placeholder="Playlist name" />
-        </div>
-        <div id="playlistItems"></div>
-        <div class="row">
-          <button class="secondary" onclick="addPlaylistItemRow()">+ Add item</button>
-          <button onclick="savePlaylist()">Save playlist</button>
-        </div>
-      </section>
-    </main>
+          <div class="card">
+            <h2>Add a screen</h2>
+            <div class="row">
+              <input id="pairCode" placeholder="Pairing code (e.g. K7QX2M)" style="text-transform:uppercase" />
+              <input id="pairName" placeholder="Screen name (e.g. Mall Entrance)" />
+              <button onclick="addScreen()">Pair screen</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>All screens</h2>
+            <table>
+              <thead>
+                <tr><th>Status</th><th>Name</th><th>Playlist</th><th>Last seen</th><th></th></tr>
+              </thead>
+              <tbody id="screensBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="playlistsView" class="view">
+          <div class="pageHeader">
+            <h1>Playlists</h1>
+            <div class="sub">Create and manage ad rotations</div>
+          </div>
+
+          <div class="card">
+            <h2>New playlist</h2>
+            <div class="row">
+              <input id="playlistName" placeholder="Playlist name" />
+            </div>
+            <div id="playlistItems"></div>
+            <div class="row">
+              <button class="secondary" onclick="addPlaylistItemRow()">+ Add item</button>
+              <button onclick="savePlaylist()">Save playlist</button>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
-  <script>
-  // ===================== CONFIG =====================
- const firebaseConfig = {
-  apiKey: "AIzaSyBq6nQFLJBQvEdOUjg7KtzpaWZ4H1reb6c",
-  authDomain: "my-signage-app-d0b8a.firebaseapp.com",
-  projectId: "my-signage-app-d0b8a",
-  storageBucket: "my-signage-app-d0b8a.firebasestorage.app",
-  messagingSenderId: "1004716989793",
-  appId: "1:1004716989793:web:bba0b9234929e3373e3920",
-  measurementId: "G-Y8X4WK2YS5"
-};
-
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-
-  // ===================== AUTH =====================
-  function login() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    auth.signInWithEmailAndPassword(email, password)
-      .catch(err => document.getElementById("loginError").textContent = err.message);
-  }
-  function logout() { auth.signOut(); }
-
-  auth.onAuthStateChanged(user => {
-    document.getElementById("loginBox").style.display = user ? "none" : "block";
-    document.getElementById("app").style.display = user ? "block" : "none";
-    if (user) {
-      watchScreens();
-      watchPlaylists();
-    }
-  });
-
-  // ===================== SCREENS =====================
-  let playlistsCache = [];
-  // FIX: keep a map of doc.id -> <tr> element so we can update rows in place
-  // instead of wiping and rebuilding the whole table on every snapshot.
-  // That full rebuild was destroying the open <select> mid-click when you
-  // tried to assign a playlist, right as some other screen's heartbeat came in.
-  let screenRows = {};
-  let screenDataCache = {}; // doc.id -> latest screen data, used to re-render dropdowns when playlists change
-
-  function addScreen() {
-    const code = document.getElementById("pairCode").value.trim().toUpperCase();
-    const name = document.getElementById("pairName").value.trim();
-    if (!code || !name) return alert("Enter both the pairing code and a name.");
-
-    const ref = db.collection("screens").doc(code);
-    ref.get().then(doc => {
-      if (!doc.exists) {
-        alert("No screen found with that code. Make sure the TV is showing this exact code.");
-        return;
-      }
-      ref.update({ status: "paired", name: name })
-        .then(() => {
-          document.getElementById("pairCode").value = "";
-          document.getElementById("pairName").value = "";
-        });
-    });
-  }
-
-  function watchScreens() {
-    db.collection("screens").onSnapshot(snapshot => {
-      document.getElementById("screenCount").textContent = snapshot.size + " screens";
-
-      snapshot.docChanges().forEach(change => {
-        const doc = change.doc;
-
-        if (change.type === "removed") {
-          if (screenRows[doc.id]) {
-            screenRows[doc.id].remove();
-            delete screenRows[doc.id];
-          }
-          delete screenDataCache[doc.id];
-          return;
-        }
-
-        const s = doc.data();
-        screenDataCache[doc.id] = s;
-        renderScreenRow(doc.id, s);
-      });
-    });
-  }
-
-  function renderScreenRow(docId, s) {
-    const lastSeenMs = s.lastSeen ? s.lastSeen.toMillis() : 0;
-    const isOnline = Date.now() - lastSeenMs < 120000; // seen in last 2 min
-
-    let tr = screenRows[docId];
-    if (!tr) {
-      tr = document.createElement("tr");
-      screenRows[docId] = tr;
-      document.getElementById("screensBody").appendChild(tr);
-    }
-
-    // FIX: don't touch the playlist <select> while the user currently has it
-    // focused/open — otherwise picking an option can get wiped mid-click.
-    const activeSelect = tr.querySelector("select.playlistSelect");
-    const isEditingThisRow = activeSelect && document.activeElement === activeSelect;
-
-    tr.innerHTML = `
-      <td><span class="dot ${isOnline ? 'online' : 'offline'}"></span>${isOnline ? 'Online' : 'Offline'}</td>
-      <td>${s.name || '(unnamed - ' + docId + ')'}</td>
-      <td>${isEditingThisRow ? activeSelect.outerHTML : playlistDropdown(docId, s.currentPlaylist)}</td>
-      <td>${lastSeenMs ? new Date(lastSeenMs).toLocaleTimeString() : '—'}</td>
-      <td><button class="secondary" onclick="removeScreen('${docId}')">Remove</button></td>
-    `;
-  }
-
-  function playlistDropdown(screenId, currentPlaylistId) {
-    const options = playlistsCache.map(p =>
-      `<option value="${p.id}" ${p.id === currentPlaylistId ? 'selected' : ''}>${p.name}</option>`
-    ).join("");
-    return `<select class="playlistSelect" onchange="assignPlaylist('${screenId}', this.value)">
-              <option value="">— none —</option>${options}
-            </select>`;
-  }
-
-  function assignPlaylist(screenId, playlistId) {
-    db.collection("screens").doc(screenId).update({ currentPlaylist: playlistId || null });
-  }
-
-  function removeScreen(screenId) {
-    if (!confirm("Remove this screen? The device will show the pairing screen again.")) return;
-    db.collection("screens").doc(screenId).update({ status: "unpaired", currentPlaylist: null, name: null });
-  }
-
-  // ===================== PLAYLISTS =====================
-  function watchPlaylists() {
-    db.collection("playlists").onSnapshot(snapshot => {
-      playlistsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Playlist names/list changed -> refresh every row's dropdown options
-      // (but still skip any row whose dropdown is actively focused).
-      Object.keys(screenDataCache).forEach(docId => {
-        renderScreenRow(docId, screenDataCache[docId]);
-      });
-    });
-  }
-
-  function addPlaylistItemRow() {
-    const container = document.getElementById("playlistItems");
-    const row = document.createElement("div");
-    row.className = "item-row";
-    row.innerHTML = `
-      <select class="itemType">
-        <option value="image">Image</option>
-        <option value="video">Video</option>
-      </select>
-      <input class="itemUrl" placeholder="Media URL (from Firebase Storage)" />
-      <input class="itemDuration" type="number" placeholder="Seconds (images only)" value="8" style="width:120px" />
-      <button onclick="this.parentElement.remove()">✕</button>
-    `;
-    container.appendChild(row);
-  }
-
-  function savePlaylist() {
-    const name = document.getElementById("playlistName").value.trim();
-    if (!name) return alert("Give the playlist a name.");
-
-    const rows = document.querySelectorAll("#playlistItems .item-row");
-    if (rows.length === 0) return alert("Add at least one item.");
-
-    const items = Array.from(rows).map(row => ({
-      type: row.querySelector(".itemType").value,
-      url: row.querySelector(".itemUrl").value.trim(),
-      durationSeconds: parseInt(row.querySelector(".itemDuration").value) || 8
-    }));
-
-    db.collection("playlists").add({ name, items, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
-      .then(() => {
-        document.getElementById("playlistName").value = "";
-        document.getElementById("playlistItems").innerHTML = "";
-        alert("Playlist saved. Assign it to a screen from the Screens table above.");
-      });
-  }
-
-  // Start with one empty item row visible
-  addPlaylistItemRow();
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
