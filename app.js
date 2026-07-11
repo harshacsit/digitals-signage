@@ -100,11 +100,14 @@ function renderScreenRow(docId, s) {
 
   const activeSelect = tr.querySelector("select.playlistSelect");
   const isEditingThisRow = activeSelect && document.activeElement === activeSelect;
+  const activeRotationSelect = tr.querySelector("select.rotationSelect");
+   const isEditingRotation = activeRotationSelect && document.activeElement === activeRotationSelect;
 
   tr.innerHTML = `
     <td><span class="dot ${isOnline ? 'online' : 'offline'}"></span>${isOnline ? 'Online' : 'Offline'}</td>
     <td>${s.name || '(unnamed - ' + docId + ')'}</td>
     <td>${isEditingThisRow ? activeSelect.outerHTML : playlistDropdown(docId, s.currentPlaylist)}</td>
+    <td>${isEditingRotation ? activeRotationSelect.outerHTML : rotationDropdown(docId, s.rotation)}</td>
     <td>${lastSeenMs ? new Date(lastSeenMs).toLocaleTimeString() : '—'}</td>
     <td><button class="secondary" onclick="removeScreen('${docId}')">Remove</button></td>
   `;
@@ -118,7 +121,17 @@ function playlistDropdown(screenId, currentPlaylistId) {
             <option value="">— none —</option>${options}
           </select>`;
 }
+function rotationDropdown(screenId, currentRotation) {
+   const rotation = currentRotation || 0;
+   const options = [0, 90, 180, 270].map(deg =>
+     `<option value="${deg}" ${deg === rotation ? 'selected' : ''}>${deg}°</option>`
+   ).join("");
+   return `<select class="rotationSelect" onchange="assignRotation('${screenId}', this.value)">${options}</select>`;
+ }
 
+function assignRotation(screenId, rotation) {
+    db.collection("screens").doc(screenId).update({ rotation: parseInt(rotation) });
+  }
 function assignPlaylist(screenId, playlistId) {
   db.collection("screens").doc(screenId).update({ currentPlaylist: playlistId || null });
 }
