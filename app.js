@@ -185,12 +185,12 @@ function addPlaylistItemRow(data) {
       <option value="video" ${data.type === "video" ? "selected" : ""}>Video</option>
     </select>
     <input class="itemUrl" placeholder="Media URL" value="${data.url || ""}" />
-    <input class="itemDuration" type="number" placeholder="Seconds (images only)" value="${data.durationSeconds || 8}" style="width:120px" />
-    <select class="itemResize" style="width:150px">
-      <option value="fit" ${(!data.resizeMode || data.resizeMode === "fit") ? "selected" : ""}>Fit (letterbox)</option>
-      <option value="fill" ${data.resizeMode === "fill" ? "selected" : ""}>Fill (stretch)</option>
-      <option value="zoom" ${data.resizeMode === "zoom" ? "selected" : ""}>Zoom (crop)</option>
-    </select>
+    <input class="itemDuration" type="number" placeholder="Seconds " value="${data.durationSeconds || 8}" style="width:120px" />
+      <select class="itemResizeMode">
+        <option value="fit">Fit (bars)</option>
+        <option value="fill">Fill (crop)</option>
+       <option value="stretch">Stretch</option>
+     </select>
     <button onclick="this.parentElement.remove()">✕</button>
   `;
   container.appendChild(row);
@@ -206,7 +206,8 @@ function savePlaylist() {
   const items = Array.from(rows).map(row => ({
     type: row.querySelector(".itemType").value,
     url: row.querySelector(".itemUrl").value.trim(),
-    durationSeconds: parseInt(row.querySelector(".itemDuration").value) || 8,
+  durationSeconds: parseInt(row.querySelector(".itemDuration").value) || 8,
+     resizeMode: row.querySelector(".itemResizeMode").value,
     resizeMode: row.querySelector(".itemResize").value
   }));
 
