@@ -43,6 +43,7 @@ auth.onAuthStateChanged(user => {
 let playlistsCache = [];
 let screenRows = {};
 let screenDataCache = {};
+let editingPlaylistId = null;
 
 function addScreen() {
   const code = document.getElementById("pairCode").value.trim().toUpperCase();
@@ -136,18 +137,60 @@ function watchPlaylists() {
     });
   });
 }
+function watchPlaylists() {
+  db.collection("playlists").onSnapshot(snapshot => {
+    playlistsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    Object.keys(screenDataCache).forEach(docId => {
+      renderScreenRow(docId, screenDataCache[docId]);
+    });
+    renderPlaylistsTable();
+  });
+}
 
-function addPlaylistItemRow() {
+function renderPlaylistsTable() {
+  document.getElementById("playlistsBody").innerHTML = playlistsCache.map(p => `
+    <tr>
+      <td>${p.name}</td>
+      <td>${(p.items || []).length} items</td>
+      <td>
+        <button class="secondary" onclick="editPlaylist('${p.id}')">Edit</button>
+        <button class="secondary" onclick="deletePlaylist('${p.id}')">Delete</button>
+      </td>
+    </tr>`).join("");
+}
+
+function editPlaylist(id) {
+  const p = playlistsCache.find(pl => pl.id === id);
+  if (!p) return;
+  editingPlaylistId = id;
+  document.getElementById("playlistName").value = p.name;
+  document.getElementById("playlistItems").innerHTML = "";
+  (p.items || []).forEach(item => addPlaylistItemRow(item));
+  document.getElementById("playlistName").scrollIntoView({ behavior: "smooth" });
+}
+
+function deletePlaylist(id) {
+  if (!confirm("Delete this playlist? Screens still assigned to it will keep showing their last content until you reassign them.")) return;
+  db.collection("playlists").doc(id).delete();
+}
+
+function addPlaylistItemRow(data) {
+  data = data || {};
   const container = document.getElementById("playlistItems");
   const row = document.createElement("div");
   row.className = "item-row";
   row.innerHTML = `
     <select class="itemType">
-      <option value="image">Image</option>
-      <option value="video">Video</option>
+      <option value="image" ${data.type !== "video" ? "selected" : ""}>Image</option>
+      <option value="video" ${data.type === "video" ? "selected" : ""}>Video</option>
     </select>
-    <input class="itemUrl" placeholder="Media URL" />
-    <input class="itemDuration" type="number" placeholder="Seconds (images only)" value="8" style="width:120px" />
+    <input class="itemUrl" placeholder="Media URL" value="${data.url || ""}" />
+    <input class="itemDuration" type="number" placeholder="Seconds (images only)" value="${data.durationSeconds || 8}" style="width:120px" />
+    <select class="itemResize" style="width:150px">
+      <option value="fit" ${(!data.resizeMode || data.resizeMode === "fit") ? "selected" : ""}>Fit (letterbox)</option>
+      <option value="fill" ${data.resizeMode === "fill" ? "selected" : ""}>Fill (stretch)</option>
+      <option value="zoom" ${data.resizeMode === "zoom" ? "selected" : ""}>Zoom (crop)</option>
+    </select>
     <button onclick="this.parentElement.remove()">✕</button>
   `;
   container.appendChild(row);
@@ -163,15 +206,22 @@ function savePlaylist() {
   const items = Array.from(rows).map(row => ({
     type: row.querySelector(".itemType").value,
     url: row.querySelector(".itemUrl").value.trim(),
-    durationSeconds: parseInt(row.querySelector(".itemDuration").value) || 8
+    durationSeconds: parseInt(row.querySelector(".itemDuration").value) || 8,
+    resizeMode: row.querySelector(".itemResize").value
   }));
 
-  db.collection("playlists").add({ name, items, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
-    .then(() => {
-      document.getElementById("playlistName").value = "";
-      document.getElementById("playlistItems").innerHTML = "";
-      alert("Playlist saved. Assign it to a screen from the Screens section.");
-    });
-}
+  const resetForm = () => {
+    editingPlaylistId = null;
+    document.getElementById("playlistName").value = "";
+    document.getElementById("playlistItems").innerHTML = "";
+  };
 
+  if (editingPlaylistId) {
+    db.collection("playlists").doc(editingPlaylistId).update({ name, items })
+      .then(() => { resetForm(); alert("Playlist updated."); });
+  } else {
+    db.collection("playlists").add({ name, items, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
+      .then(() => { resetForm(); alert("Playlist saved. Assign it to a screen from the Screens table above."); });
+  }
+}
 addPlaylistItemRow();
