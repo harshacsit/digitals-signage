@@ -82,6 +82,14 @@ function watchScreens() {
 
       const s = doc.data();
       screenDataCache[doc.id] = s;
+       if (s.status !== "paired") {
+        if (screenRows[doc.id]) {
+          screenRows[doc.id].remove();
+          delete screenRows[doc.id];
+        }
+        return;
+      }
+
       renderScreenRow(doc.id, s);
     });
   });
