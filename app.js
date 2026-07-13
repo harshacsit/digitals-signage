@@ -142,14 +142,8 @@ function removeScreen(screenId) {
 }
 
 // ===================== PLAYLISTS =====================
-function watchPlaylists() {
-  db.collection("playlists").onSnapshot(snapshot => {
-    playlistsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    Object.keys(screenDataCache).forEach(docId => {
-      renderScreenRow(docId, screenDataCache[docId]);
-    });
-  });
-}
+
+
 function watchPlaylists() {
   db.collection("playlists").onSnapshot(snapshot => {
     playlistsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -221,7 +215,7 @@ function savePlaylist() {
     url: row.querySelector(".itemUrl").value.trim(),
   durationSeconds: parseInt(row.querySelector(".itemDuration").value) || 8,
      resizeMode: row.querySelector(".itemResizeMode").value,
-    resizeMode: row.querySelector(".itemResize").value
+    
   }));
 
   const resetForm = () => {
