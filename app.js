@@ -206,6 +206,14 @@ function addPlaylistItemRow(data) {
         <option value="fill">Fill (crop)</option>
        <option value="stretch">Stretch</option>
      </select>
+<select class="itemRotation">
+    <option value="0" ${(data.rotation || 0) === 0 ? "selected" : ""}>0°</option>
+    <option value="90" ${data.rotation === 90 ? "selected" : ""}>90°</option>
+    <option value="180" ${data.rotation === 180 ? "selected" : ""}>180°</option>
+    <option value="270" ${data.rotation === 270 ? "selected" : ""}>270°</option>
+  </select>
+
+
     <button onclick="this.parentElement.remove()">✕</button>
   `;
   container.appendChild(row);
@@ -223,7 +231,7 @@ function savePlaylist() {
     url: row.querySelector(".itemUrl").value.trim(),
   durationSeconds: parseInt(row.querySelector(".itemDuration").value) || 8,
      resizeMode: row.querySelector(".itemResizeMode").value,
-    
+    rotation: parseInt(row.querySelector(".itemRotation").value) || 0
   }));
 
   const resetForm = () => {
