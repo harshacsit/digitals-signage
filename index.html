@@ -22,7 +22,8 @@
         <div class="brand">signage</div>
         <nav>
           <button class="navBtn active" onclick="switchView('screensView', this)">🖥️ Screens</button>
-          <button class="navBtn" onclick="switchView('playlistsView', this)">🎬 Playlists</button>
+          <button class="navBtn" onclick="switchView('playlistsView', this)">🎬 Playlists</button>|
+          <button class="navBtn" onclick="switchView('analyticsView', this)">📊 Analytics</button>
         </nav>
         <button class="secondary signOutBtn" onclick="logout()">Sign out</button>
       </aside>
@@ -60,6 +61,42 @@
             <h1>Playlists</h1>
             <div class="sub">Create and manage ad rotations</div>
           </div>
+          <section id="analyticsView" class="view">
+          <div class="pageHeader">
+            <h1>Analytics</h1>
+            <div class="sub">Ad playtime by screen and day</div>
+          </div>
+
+          <div class="card">
+            <div class="row">
+              <select id="analyticsScreenFilter" onchange="loadAnalytics()">
+                <option value="">All screens</option>
+              </select>
+              <input type="date" id="analyticsDateFilter" onchange="loadAnalytics()" />
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Total playtime</h2>
+            <div class="sub" id="analyticsTotal">—</div>
+          </div>
+
+          <div class="card" id="analyticsByScreenCard" style="display:none">
+            <h2>By screen</h2>
+            <table>
+              <thead><tr><th>Screen</th><th>Ads played</th><th>Total playtime</th></tr></thead>
+              <tbody id="analyticsByScreenBody"></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h2>By ad</h2>
+            <table>
+              <thead><tr><th>Type</th><th>Media URL</th><th>Plays</th><th>Total playtime</th></tr></thead>
+              <tbody id="analyticsByAdBody"></tbody>
+            </table>
+          </div>
+        </section>
 
           <section>
     <h2>Your playlists</h2>
