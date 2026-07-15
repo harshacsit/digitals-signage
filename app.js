@@ -36,6 +36,9 @@ auth.onAuthStateChanged(user => {
   if (user) {
     watchScreens();
     watchPlaylists();
+    initAnalyticsFilters();
+    loadAnalytics();
+  
   }
 });
 
@@ -82,6 +85,7 @@ function watchScreens() {
 
       const s = doc.data();
       screenDataCache[doc.id] = s;
+      
        if (s.status !== "paired") {
         if (screenRows[doc.id]) {
           screenRows[doc.id].remove();
@@ -92,6 +96,7 @@ function watchScreens() {
 
       renderScreenRow(doc.id, s);
     });
+    populateAnalyticsScreenOptions();
   });
 }
 
@@ -195,11 +200,12 @@ function addPlaylistItemRow(data) {
   const row = document.createElement("div");
   row.className = "item-row";
   row.innerHTML = `
-    <select class="itemType">
-      <option value="image" ${data.type !== "video" ? "selected" : ""}>Image</option>
+   <select class="itemType">
+      <option value="image" ${data.type !== "video" && data.type !== "web" ? "selected" : ""}>Image</option>
       <option value="video" ${data.type === "video" ? "selected" : ""}>Video</option>
+      <option value="web" ${data.type === "web" ? "selected" : ""}>Web Page / YouTube</option>
     </select>
-    <input class="itemUrl" placeholder="Media URL" value="${data.url || ""}" />
+    <input class="itemUrl" placeholder="Media URL (or YouTube link for Web Page)" value="${data.url || ""}" />
     <input class="itemDuration" type="number" placeholder="Seconds " value="${data.durationSeconds || 8}" style="width:120px" />
       <select class="itemResizeMode">
         <option value="fit">Fit (bars)</option>
@@ -246,6 +252,97 @@ function savePlaylist() {
   } else {
     db.collection("playlists").add({ name, items, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
       .then(() => { resetForm(); alert("Playlist saved. Assign it to a screen from the Screens table above."); });
+  }
+}
+// ===================== ANALYTICS =====================
+function initAnalyticsFilters() {
+  const dateInput = document.getElementById("analyticsDateFilter");
+  if (!dateInput.value) {
+    dateInput.value = new Date().toISOString().slice(0, 10); // yyyy-mm-dd, defaults to today
+  }
+}
+
+function populateAnalyticsScreenOptions() {
+  const sel = document.getElementById("analyticsScreenFilter");
+  const current = sel.value;
+  const options = Object.keys(screenDataCache).map(id => {
+    const s = screenDataCache[id];
+    return `<option value="${id}">${s.name || id}</option>`;
+  }).join("");
+  sel.innerHTML = `<option value="">All screens</option>${options}`;
+  sel.value = current;
+}
+
+function formatPlaytime(totalSeconds) {
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = Math.round(totalSeconds % 60);
+  return mins === 0 ? `${secs}s` : `${mins}m ${secs}s`;
+}
+
+function loadAnalytics() {
+  const dateInput = document.getElementById("analyticsDateFilter").value;
+  if (!dateInput) return;
+  const dateKey = dateInput.replace(/-/g, ""); // yyyymmdd, matches the Android app's format
+  const screenId = document.getElementById("analyticsScreenFilter").value;
+  const byScreenCard = document.getElementById("analyticsByScreenCard");
+
+  if (screenId) {
+    byScreenCard.style.display = "none";
+    db.collection("analytics").doc(`${screenId}_${dateKey}`).collection("items").get()
+      .then(snapshot => renderAnalytics(snapshot.docs.map(d => d.data()), false))
+      .catch(err => {
+        console.error(err);
+        document.getElementById("analyticsTotal").textContent = "Couldn't load analytics for this screen/date.";
+      });
+  } else {
+    byScreenCard.style.display = "block";
+    db.collectionGroup("items").where("date", "==", dateKey).get()
+      .then(snapshot => renderAnalytics(snapshot.docs.map(d => d.data()), true))
+      .catch(err => {
+        console.error(err);
+        document.getElementById("analyticsTotal").textContent =
+          "Couldn't load — check the browser console, Firestore may need a one-time index (it gives you a link to create it).";
+      });
+  }
+}
+
+function renderAnalytics(rows, groupByScreen) {
+  let totalSeconds = 0;
+  const byAd = {};
+  const byScreen = {};
+
+  rows.forEach(r => {
+    const seconds = r.totalSeconds || 0;
+    totalSeconds += seconds;
+
+    if (!byAd[r.url]) byAd[r.url] = { type: r.type, url: r.url, playCount: 0, totalSeconds: 0 };
+    byAd[r.url].playCount += r.playCount || 0;
+    byAd[r.url].totalSeconds += seconds;
+
+    if (groupByScreen) {
+      if (!byScreen[r.screenId]) byScreen[r.screenId] = { screenId: r.screenId, playCount: 0, totalSeconds: 0 };
+      byScreen[r.screenId].playCount += r.playCount || 0;
+      byScreen[r.screenId].totalSeconds += seconds;
+    }
+  });
+
+  document.getElementById("analyticsTotal").textContent = rows.length
+    ? `${formatPlaytime(totalSeconds)} across ${rows.length} ad${rows.length === 1 ? '' : 's'}`
+    : "No playback recorded for this filter.";
+
+  document.getElementById("analyticsByAdBody").innerHTML = Object.values(byAd)
+    .sort((a, b) => b.totalSeconds - a.totalSeconds)
+    .map(a => `<tr><td>${a.type}</td><td>${a.url}</td><td>${a.playCount}</td><td>${formatPlaytime(a.totalSeconds)}</td></tr>`)
+    .join("") || `<tr><td colspan="4">No data</td></tr>`;
+
+  if (groupByScreen) {
+    document.getElementById("analyticsByScreenBody").innerHTML = Object.values(byScreen)
+      .sort((a, b) => b.totalSeconds - a.totalSeconds)
+      .map(s => {
+        const name = (screenDataCache[s.screenId] && screenDataCache[s.screenId].name) || s.screenId;
+        return `<tr><td>${name}</td><td>${s.playCount}</td><td>${formatPlaytime(s.totalSeconds)}</td></tr>`;
+      })
+      .join("") || `<tr><td colspan="3">No data</td></tr>`;
   }
 }
 addPlaylistItemRow();
