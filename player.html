@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Signage Player</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #0B0E14; overflow: hidden; font-family: sans-serif;
+  }
+  #pairingScreen {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 100%; height: 100vh; color: #7C88A6; text-align: center;
+  }
+  #pairingScreen .label { font-size: 18px; letter-spacing: 1px; margin-bottom: 24px; }
+  #pairingScreen .code {
+    color: #4F7CFF; font-size: 72px; font-weight: bold; letter-spacing: 4px;
+    background: #131826; padding: 24px 48px; border-radius: 8px;
+  }
+  #pairingScreen .hint { margin-top: 24px; font-size: 16px; }
+
+  #playerScreen {
+    display: none; position: absolute; top: 50%; left: 50%;
+    transform-origin: center center;
+  }
+  #playerScreen.hidden { display: none; }
+  #playerScreen video, #playerScreen img, #playerScreen iframe {
+    display: none; width: 100%; height: 100%; border: 0; background: #000;
+  }
+</style>
+</head>
+<body>
+
+  <div id="pairingScreen">
+    <div class="label">WAITING TO BE PAIRED</div>
+    <div class="code" id="pairingCodeText">------</div>
+    <div class="hint">Enter this code in the dashboard under Add Screen</div>
+  </div>
+
+  <div id="playerScreen">
+    <video id="videoEl" muted playsinline></video>
+    <img id="imageEl" />
+    <iframe id="webFrame" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script>
+    // ===================== CONFIG (same Firebase project as the Android app / dashboard) =====================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBq6nQFLJBQvEdOUjg7KtzpaWZ4H1reb6c",
+      authDomain: "my-signage-app-d0b8a.firebaseapp.com",
+      projectId: "my-signage-app-d0b8a",
+      storageBucket: "my-signage-app-d0b8a.firebasestorage.app",
+      messagingSenderId: "1004716989793",
+      appId: "1:1004716989793:web:bba0b9234929e3373e3920",
+      measurementId: "G-Y8X4WK2YS5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    db.enablePersistence().catch(err => console.warn("Persistence not enabled:", err.code));
+
+    // ===================== STATE =====================
+    let screenId = null;
+    let screenListenerUnsub = null;
+    let playlistListenerUnsub = null;
+    let lastPlaylistId = null;
+    let playlistItems = [];
+    let currentIndex = 0;
+    let advanceTimer = null;
+    let currentItemStartTime = 0;
+    let currentItemForLogging = null;
+
+    const pairingScreen = document.getElementById("pairingScreen");
+    const pairingCodeText = document.getElementById("pairingCodeText");
+    const playerScreen = document.getElementById("playerScreen");
+    const videoEl = document.getElementById("videoEl");
+    const imageEl = document.getElementById("imageEl");
+    const webFrame = document.getElementById("webFrame");
+
+    // ===================== SCREEN ID (persistent, like Android's SharedPreferences) =====================
+    function getOrCreateScreenId() {
+      let id = localStorage.getItem("screen_id");
+      if (id) return id;
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      id = "";
+      for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
+      localStorage.setItem("screen_id", id);
+      return id;
+    }
+
+    // ===================== INIT =====================
+    screenId = getOrCreateScreenId();
+    pairingCodeText.textContent = screenId;
+
+    auth.signInAnonymously().catch(err => console.error("Anonymous sign-in failed", err));
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        registerScreenIfNeeded();
+        watchScreenDoc();
+        startHeartbeat();
+      }
+    });
+
+    function registerScreenIfNeeded() {
+      const ref = db.collection("screens").doc(screenId);
+      ref.get().then(doc => {
+        if (!doc.exists) {
+          ref.set({
+            status: "unpaired",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      });
+    }
+
+    // ===================== WATCH SCREEN DOC =====================
+    function watchScreenDoc() {
+      if (screenListenerUnsub) screenListenerUnsub();
+      screenListenerUnsub = db.collection("screens").doc(screenId).onSnapshot(snap => {
+        if (!snap.exists) return;
+        const s = snap.data();
+
+        if (s.status === "paired") {
+          pairingScreen.style.display = "none";
+          playerScreen.style.display = "block";
+          applyScreenRotation(s.rotation || 0);
+
+          if (s.currentPlaylist && s.currentPlaylist !== lastPlaylistId) {
+            lastPlaylistId = s.currentPlaylist;
+            watchPlaylistDoc(s.currentPlaylist);
+          }
+        } else {
+          pairingScreen.style.display = "flex";
+          playerScreen.style.display = "none";
+          lastPlaylistId = null;
+          if (playlistListenerUnsub) { playlistListenerUnsub(); playlistListenerUnsub = null; }
+          clearTimeout(advanceTimer);
+        }
+      });
+    }
+
+    // ===================== WATCH PLAYLIST DOC =====================
+    function watchPlaylistDoc(playlistId) {
+      if (playlistListenerUnsub) playlistListenerUnsub();
+      playlistListenerUnsub = db.collection("playlists").doc(playlistId).onSnapshot(snap => {
+        if (!snap.exists) return;
+        const items = snap.data().items;
+        if (Array.isArray(items)) {
+          playlistItems = items;
+          currentIndex = 0;
+          playCurrentItem();
+        }
+      });
+    }
+
+    // ===================== ROTATION (screen-level, mirrors applyScreenRotation in MainActivity.kt) =====================
+    function applyScreenRotation(deg) {
+      const w = window.innerWidth, h = window.innerHeight;
+      if (deg === 90 || deg === 270) {
+        playerScreen.style.width = h + "px";
+        playerScreen.style.height = w + "px";
+      } else {
+        playerScreen.style.width = w + "px";
+        playerScreen.style.height = h + "px";
+      }
+      playerScreen.style.transform = `translate(-50%, -50%) rotate(${deg}deg)`;
+    }
+
+    function applyItemRotation(el, deg) {
+      el.style.transform = deg ? `rotate(${deg}deg)` : "";
+    }
+
+    // ===================== PLAYBACK =====================
+    function hideAllMedia() {
+      videoEl.style.display = "none"; videoEl.pause();
+      imageEl.style.display = "none";
+      webFrame.style.display = "none"; webFrame.src = "about:blank";
+    }
+
+    function playCurrentItem() {
+      logPreviousItemPlayback();
+      clearTimeout(advanceTimer);
+      videoEl.onended = null;
+
+      if (playlistItems.length === 0) return;
+      if (currentIndex >= playlistItems.length) currentIndex = 0;
+
+      const item = playlistItems[currentIndex];
+      currentItemStartTime = Date.now();
+      currentItemForLogging = item;
+
+      const url = item.url;
+      const type = item.type || "video";
+      const durationMs = (item.durationSeconds || 8) * 1000;
+      const resizeMode = item.resizeMode || "fit";
+      const itemRotation = item.rotation || 0;
+      if (!url) return;
+
+      hideAllMedia();
+
+      if (type === "video") {
+        videoEl.style.display = "block";
+        videoEl.style.objectFit = resizeMode === "fill" ? "cover" : resizeMode === "stretch" ? "fill" : "contain";
+        applyItemRotation(videoEl, itemRotation);
+        videoEl.src = url;
+        videoEl.play().catch(e => console.error("video play failed", e));
+
+        if (item.durationSeconds) {
+          advanceTimer = setTimeout(advance, durationMs);
+        } else {
+          videoEl.onended = advance; // no explicit duration -> advance when video finishes
+        }
+      } else if (type === "web") {
+        webFrame.style.display = "block";
+        applyItemRotation(webFrame, itemRotation);
+        const videoId = extractYoutubeVideoId(url);
+        if (videoId) {
+          const isLive = url.includes("youtube.com/live/");
+          webFrame.src = buildYoutubeEmbedUrl(videoId, isLive);
+        } else {
+          webFrame.src = url;
+        }
+        advanceTimer = setTimeout(advance, durationMs);
+      } else {
+        imageEl.style.display = "block";
+        imageEl.style.objectFit = resizeMode === "fill" ? "cover" : resizeMode === "stretch" ? "fill" : "contain";
+        applyItemRotation(imageEl, itemRotation);
+        imageEl.src = url;
+        advanceTimer = setTimeout(advance, durationMs);
+      }
+    }
+
+    function advance() {
+      if (playlistItems.length === 0) return;
+      currentIndex = (currentIndex + 1) % playlistItems.length;
+      playCurrentItem();
+    }
+
+    // ===================== YOUTUBE HELPERS (mirrors extractYoutubeVideoId / buildYoutubeEmbedHtml in MainActivity.kt) =====================
+    function extractYoutubeVideoId(url) {
+      const pattern = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/live\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/;
+      const m = url.match(pattern);
+      if (m) return m[1];
+      if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+      return null;
+    }
+
+    function buildYoutubeEmbedUrl(videoId, isLive) {
+      const loopParams = isLive ? "" : `&loop=1&playlist=${videoId}`;
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0${loopParams}&rel=0&playsinline=1`;
+    }
+
+    // ===================== HEARTBEAT =====================
+    function startHeartbeat() {
+      setInterval(() => {
+        db.collection("screens").doc(screenId).update({
+          lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(e => console.error("Heartbeat failed", e));
+      }, 30000);
+    }
+
+    // ===================== ANALYTICS (mirrors logPlaybackEvent in MainActivity.kt, same schema as Android) =====================
+    function logPreviousItemPlayback() {
+      if (!currentItemForLogging || !currentItemStartTime) return;
+      const playedMs = Date.now() - currentItemStartTime;
+      currentItemStartTime = 0;
+      if (playedMs < 500) return;
+      logPlaybackEvent(currentItemForLogging, playedMs);
+    }
+
+    function logPlaybackEvent(item, playedMs) {
+      const url = item.url;
+      const type = item.type || "video";
+      const playedSeconds = playedMs / 1000.0;
+
+      const now = new Date();
+      const dateKey = now.getFullYear().toString() +
+        String(now.getMonth() + 1).padStart(2, "0") +
+        String(now.getDate()).padStart(2, "0");
+      const dayDocId = `${screenId}_${dateKey}`;
+      const itemDocId = encodeURIComponent(url).slice(0, 300);
+
+      db.collection("analytics").doc(dayDocId).collection("items").doc(itemDocId).set({
+        screenId, date: dateKey, url, type,
+        playCount: firebase.firestore.FieldValue.increment(1),
+        totalSeconds: firebase.firestore.FieldValue.increment(playedSeconds),
+        lastPlayed: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch(e => console.error("Analytics log failed", e));
+    }
+
+    // Log the last item's playtime if the page is ever closed/reloaded
+    window.addEventListener("beforeunload", logPreviousItemPlayback);
+  </script>
+</body>
+</html>
