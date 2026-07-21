@@ -151,7 +151,9 @@ function assignPlaylist(screenId, playlistId) {
 
 function removeScreen(screenId) {
   if (!confirm("Remove this screen? The device will show the pairing screen again.")) return;
-  db.collection("screens").doc(screenId).update({ status: "unpaired", currentPlaylist: null, name: null });
+  db.collection("screens").doc(screenId).update({ status: "unpaired", currentPlaylist: null, name: null })
+    .then(() => console.log("Screen unpaired successfully:", screenId))
+    .catch(err => alert("Failed to remove screen: " + err.message));
 }
 
 // ===================== PLAYLISTS =====================
@@ -161,12 +163,14 @@ function watchPlaylists() {
   db.collection("playlists").onSnapshot(snapshot => {
     playlistsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     Object.keys(screenDataCache).forEach(docId => {
-      renderScreenRow(docId, screenDataCache[docId]);
+      const s = screenDataCache[docId];
+      if (s.status === "paired") {
+        renderScreenRow(docId, s);
+      }
     });
     renderPlaylistsTable();
   });
 }
-
 function renderPlaylistsTable() {
   document.getElementById("playlistsBody").innerHTML = playlistsCache.map(p => `
     <tr>

@@ -61,7 +61,26 @@
             <h1>Playlists</h1>
             <div class="sub">Create and manage ad rotations</div>
           </div>
-          <section id="analyticsView" class="view">
+          <section>
+    <h2>Your playlists</h2>
+     <table>
+      <thead><tr><th>Name</th><th>Items</th><th></th></tr></thead>
+      <tbody id="playlistsBody"></tbody>
+      </table>
+      </section>
+          <div class="card">
+            <h2>New playlist</h2>
+            <div class="row">
+              <input id="playlistName" placeholder="Playlist name" />
+            </div>
+            <div id="playlistItems"></div>
+            <div class="row">
+              <button class="secondary" onclick="addPlaylistItemRow()">+ Add item</button>
+              <button onclick="savePlaylist()">Save playlist</button>
+            </div>
+          </div>
+        </section>
+         <section id="analyticsView" class="view">
           <div class="pageHeader">
             <h1>Analytics</h1>
             <div class="sub">Ad playtime by screen and day</div>
@@ -95,26 +114,6 @@
               <thead><tr><th>Type</th><th>Media URL</th><th>Plays</th><th>Total playtime</th></tr></thead>
               <tbody id="analyticsByAdBody"></tbody>
             </table>
-          </div>
-        </section>
-
-          <section>
-    <h2>Your playlists</h2>
-     <table>
-      <thead><tr><th>Name</th><th>Items</th><th></th></tr></thead>
-      <tbody id="playlistsBody"></tbody>
-      </table>
-      </section>
-          <div class="card">
-            <h2>New playlist</h2>
-            <div class="row">
-              <input id="playlistName" placeholder="Playlist name" />
-            </div>
-            <div id="playlistItems"></div>
-            <div class="row">
-              <button class="secondary" onclick="addPlaylistItemRow()">+ Add item</button>
-              <button onclick="savePlaylist()">Save playlist</button>
-            </div>
           </div>
         </section>
 
