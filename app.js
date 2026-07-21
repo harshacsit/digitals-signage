@@ -223,6 +223,10 @@ function addPlaylistItemRow(data) {
     <option value="270" ${data.rotation === 270 ? "selected" : ""}>270°</option>
   </select>
 
+    <label style="display:flex;align-items:center;gap:4px;">
+      <input type="checkbox" class="itemIsLive" ${data.isLive ? "checked" : ""} />
+      Live
+    </label>
 
     <button onclick="this.parentElement.remove()">✕</button>
   `;
@@ -236,12 +240,13 @@ function savePlaylist() {
   const rows = document.querySelectorAll("#playlistItems .item-row");
   if (rows.length === 0) return alert("Add at least one item.");
 
-  const items = Array.from(rows).map(row => ({
+ const items = Array.from(rows).map(row => ({
     type: row.querySelector(".itemType").value,
     url: row.querySelector(".itemUrl").value.trim(),
   durationSeconds: parseInt(row.querySelector(".itemDuration").value) || 8,
      resizeMode: row.querySelector(".itemResizeMode").value,
-    rotation: parseInt(row.querySelector(".itemRotation").value) || 0
+    rotation: parseInt(row.querySelector(".itemRotation").value) || 0,
+    isLive: row.querySelector(".itemIsLive").checked
   }));
 
   const resetForm = () => {
