@@ -122,7 +122,7 @@ function renderScreenRow(docId, s) {
     <td>${isEditingThisRow ? activeSelect.outerHTML : playlistDropdown(docId, s.currentPlaylist)}</td>
     <td>${isEditingRotation ? activeRotationSelect.outerHTML : rotationDropdown(docId, s.rotation)}</td>
     <td>${lastSeenMs ? new Date(lastSeenMs).toLocaleTimeString() : '—'}</td>
-    <td><button class="secondary" onclick="removeScreen('${docId}')">Remove</button></td>
+    <td><button class="secondary danger" onclick="removeScreen('${docId}')">Remove</button></td>
   `;
 }
 
@@ -178,7 +178,7 @@ function renderPlaylistsTable() {
       <td>${(p.items || []).length} items</td>
       <td>
         <button class="secondary" onclick="editPlaylist('${p.id}')">Edit</button>
-        <button class="secondary" onclick="deletePlaylist('${p.id}')">Delete</button>
+        <button class="secondary danger" onclick="deletePlaylist('${p.id}')">Delete</button>
       </td>
     </tr>`).join("");
 }

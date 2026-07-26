@@ -19,10 +19,11 @@
   <div id="app">
     <div class="appShell">
       <aside class="sidebar">
-        <div class="brand">signage</div>
+        <div class="brand">SignageOS</div>
+<div class="brandSub">Management Pro</div>
         <nav>
           <button class="navBtn active" onclick="switchView('screensView', this)">🖥️ Screens</button>
-          <button class="navBtn" onclick="switchView('playlistsView', this)">🎬 Playlists</button>|
+          <button class="navBtn" onclick="switchView('playlistsView', this)">🎬 Playlists</button>
           <button class="navBtn" onclick="switchView('analyticsView', this)">📊 Analytics</button>
         </nav>
         <button class="secondary signOutBtn" onclick="logout()">Sign out</button>
@@ -64,7 +65,7 @@
           <section>
     <h2>Your playlists</h2>
      <table>
-      <thead><tr><th>Name</th><th>Items</th><th></th></tr></thead>
+     <thead class="blueHead"><tr><th>Name</th><th>Items</th><th></th></tr></thead>
       <tbody id="playlistsBody"></tbody>
       </table>
       </section>
