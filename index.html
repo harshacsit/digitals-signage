@@ -3,118 +3,215 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>bhimavaram digitals Dashboard</title>
+<title>Bhimavaram Digitals Dashboard</title>
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
+  <!-- ===================== LOGIN ===================== -->
   <div id="loginBox">
-    <h2>Sign in</h2>
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <button onclick="login()">Sign in</button>
-    <div id="loginError"></div>
+    <div class="login-card shadow-sm">
+      <div class="text-center mb-4">
+        <div class="brand-mark mx-auto mb-2">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+            <rect x="1" y="3" width="24" height="15" rx="2.5" stroke="white" stroke-width="2" />
+            <path d="M9 21h8" stroke="white" stroke-width="2" stroke-linecap="round" />
+            <path d="M13 18v3" stroke="white" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <h1 class="h4 fw-bold text-primary-brand mb-0">Bhimavaram Digitals</h1>
+        <div class="text-muted small text-uppercase brand-sub">Management Pro</div>
+      </div>
+
+      <h2 class="h6 fw-semibold text-center mb-4">Sign in to your account</h2>
+
+      <div class="mb-3 text-start">
+        <label class="form-label small">Email address</label>
+        <input type="email" id="email" class="form-control" placeholder="you@example.com" />
+      </div>
+      <div class="mb-4 text-start">
+        <label class="form-label small">Password</label>
+        <input type="password" id="password" class="form-control" placeholder="••••••••" />
+      </div>
+
+      <button class="btn btn-primary-brand w-100 py-2" onclick="login()">Sign in</button>
+      <div id="loginError" class="text-danger small mt-2"></div>
+    </div>
   </div>
 
+  <!-- ===================== APP ===================== -->
   <div id="app">
-    <div class="appShell">
-      <aside class="sidebar">
-        <div class="brand">SignageOS</div>
-<div class="brandSub">Management Pro</div>
-        <nav>
-          <button class="navBtn active" onclick="switchView('screensView', this)">🖥️ Screens</button>
-          <button class="navBtn" onclick="switchView('playlistsView', this)">🎬 Playlists</button>
-          <button class="navBtn" onclick="switchView('analyticsView', this)">📊 Analytics</button>
+    <div class="d-flex">
+
+      <!-- Sidebar -->
+      <aside class="sidebar d-flex flex-column">
+        <div class="px-3 pt-3 pb-4">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <div class="brand-mark-sm">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="2" width="14" height="9" rx="1.5" stroke="white" stroke-width="1.5" />
+                <path d="M5 13h6" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+                <path d="M8 11v2" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+              </svg>
+            </div>
+            <span class="fw-bold text-primary-brand">Bhimavaram Digitals</span>
+          </div>
+          <div class="text-muted brand-sub ps-1">Management Pro</div>
+        </div>
+
+        <nav class="px-2 flex-grow-1">
+          <button class="navBtn active" onclick="switchView('screensView', this)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><rect x="1" y="2" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 13h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 11v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            Screens
+          </button>
+          <button class="navBtn" onclick="switchView('playlistsView', this)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="13" cy="11" r="2.3" stroke="currentColor" stroke-width="1.3"/></svg>
+            Playlists
+          </button>
+          <button class="navBtn" onclick="switchView('analyticsView', this)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><path d="M2 14V2M2 14h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><rect x="4.5" y="8" width="2" height="4" fill="currentColor"/><rect x="8" y="5" width="2" height="7" fill="currentColor"/><rect x="11.5" y="10" width="2" height="2" fill="currentColor"/></svg>
+            Analytics
+          </button>
         </nav>
-        <button class="secondary signOutBtn" onclick="logout()">Sign out</button>
+
+        <div class="px-2 pb-3">
+          <button class="secondary signOutBtn w-100 text-start" onclick="logout()">Sign out</button>
+        </div>
       </aside>
 
-      <main class="mainArea">
+      <!-- Main -->
+      <main class="mainArea flex-grow-1">
 
+        <!-- SCREENS -->
         <section id="screensView" class="view active">
-          <div class="pageHeader">
-            <h1>Screens</h1>
-            <div class="sub" id="screenCount">0 screens</div>
+          <div class="pageHeader d-flex justify-content-between align-items-end flex-wrap gap-2">
+            <div>
+              <h1>Screens</h1>
+              <div class="sub">Manage connected digital signage screens.</div>
+            </div>
+            <span class="status-total-pill">
+              <span class="dot offline"></span>
+              <span id="screenCount">0 screens</span>
+            </span>
           </div>
 
           <div class="card">
-            <h2>Add a screen</h2>
-            <div class="row">
-              <input id="pairCode" placeholder="Pairing code (e.g. K7QX2M)" style="text-transform:uppercase" />
-              <input id="pairName" placeholder="Screen name (e.g. Mall Entrance)" />
-              <button onclick="addScreen()">Pair screen</button>
+            <h2><span class="icon-badge me-2">＋</span>Add a screen</h2>
+            <div class="row g-3 align-items-end">
+              <div class="col-md">
+                <label class="form-label small">Pairing code</label>
+                <input id="pairCode" class="form-control text-uppercase" placeholder="e.g. K7QX2M" />
+              </div>
+              <div class="col-md">
+                <label class="form-label small">Screen name</label>
+                <input id="pairName" class="form-control" placeholder="e.g. Mall Entrance" />
+              </div>
+              <div class="col-md-auto">
+                <button class="btn btn-primary-brand" onclick="addScreen()">Pair screen</button>
+              </div>
             </div>
           </div>
 
-          <div class="card">
-            <h2>All screens</h2>
-            <table>
-              <thead>
-                <tr><th>Status</th><th>Name</th><th>Playlist</th><th>Rotation</th><th>Last seen</th><th></th></tr>
-              </thead>
-              <tbody id="screensBody"></tbody>
-            </table>
+          <div class="card p-0 overflow-hidden">
+            <div class="card-table-header">
+              <h2 class="mb-0">All screens</h2>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead>
+                  <tr><th>Status</th><th>Name</th><th>Playlist</th><th>Rotation</th><th>Last seen</th><th class="text-end">Actions</th></tr>
+                </thead>
+                <tbody id="screensBody"></tbody>
+              </table>
+            </div>
           </div>
         </section>
 
+        <!-- PLAYLISTS -->
         <section id="playlistsView" class="view">
           <div class="pageHeader">
             <h1>Playlists</h1>
             <div class="sub">Create and manage ad rotations</div>
           </div>
-          <section>
-    <h2>Your playlists</h2>
-     <table>
-     <thead class="blueHead"><tr><th>Name</th><th>Items</th><th></th></tr></thead>
-      <tbody id="playlistsBody"></tbody>
-      </table>
-      </section>
+
+          <div class="card p-0 overflow-hidden">
+            <div class="card-table-header">
+              <h2 class="mb-0">Your playlists</h2>
+            </div>
+            <div class="table-responsive">
+              <table class="table mb-0">
+                <thead class="blueHead"><tr><th>Name</th><th>Items</th><th class="text-end">Actions</th></tr></thead>
+                <tbody id="playlistsBody"></tbody>
+              </table>
+            </div>
+          </div>
+
           <div class="card">
-            <h2>New playlist</h2>
-            <div class="row">
-              <input id="playlistName" placeholder="Playlist name" />
+            <h2><span class="icon-badge me-2">＋</span>New playlist</h2>
+            <div class="row g-3 mb-2">
+              <div class="col-md-6">
+                <label class="form-label small">Playlist name</label>
+                <input id="playlistName" class="form-control" placeholder="Enter name..." />
+              </div>
             </div>
             <div id="playlistItems"></div>
-            <div class="row">
+            <div class="d-flex gap-2 mt-3">
               <button class="secondary" onclick="addPlaylistItemRow()">+ Add item</button>
-              <button onclick="savePlaylist()">Save playlist</button>
+              <button class="btn btn-primary-brand" onclick="savePlaylist()">Save playlist</button>
             </div>
           </div>
         </section>
-         <section id="analyticsView" class="view">
+
+        <!-- ANALYTICS -->
+        <section id="analyticsView" class="view">
           <div class="pageHeader">
             <h1>Analytics</h1>
             <div class="sub">Ad playtime by screen and day</div>
           </div>
 
           <div class="card">
-            <div class="row">
-              <select id="analyticsScreenFilter" onchange="loadAnalytics()">
-                <option value="">All screens</option>
-              </select>
-              <input type="date" id="analyticsDateFilter" onchange="loadAnalytics()" />
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small">Screen</label>
+                <select id="analyticsScreenFilter" class="form-select" onchange="loadAnalytics()">
+                  <option value="">All screens</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">Date</label>
+                <input type="date" id="analyticsDateFilter" class="form-control" onchange="loadAnalytics()" />
+              </div>
             </div>
           </div>
 
           <div class="card">
             <h2>Total playtime</h2>
-            <div class="sub" id="analyticsTotal">—</div>
+            <div class="analytics-total" id="analyticsTotal">—</div>
           </div>
 
-          <div class="card" id="analyticsByScreenCard" style="display:none">
-            <h2>By screen</h2>
-            <table>
-              <thead><tr><th>Screen</th><th>Ads played</th><th>Total playtime</th></tr></thead>
-              <tbody id="analyticsByScreenBody"></tbody>
-            </table>
+          <div class="card p-0 overflow-hidden" id="analyticsByScreenCard" style="display:none">
+            <div class="card-table-header"><h2 class="mb-0">By screen</h2></div>
+            <div class="table-responsive">
+              <table class="table mb-0">
+                <thead><tr><th>Screen</th><th>Ads played</th><th>Total playtime</th></tr></thead>
+                <tbody id="analyticsByScreenBody"></tbody>
+              </table>
+            </div>
           </div>
 
-          <div class="card">
-            <h2>By ad</h2>
-            <table>
-              <thead><tr><th>Type</th><th>Media URL</th><th>Plays</th><th>Total playtime</th></tr></thead>
-              <tbody id="analyticsByAdBody"></tbody>
-            </table>
+          <div class="card p-0 overflow-hidden">
+            <div class="card-table-header"><h2 class="mb-0">By ad</h2></div>
+            <div class="table-responsive">
+              <table class="table mb-0">
+                <thead><tr><th>Type</th><th>Media URL</th><th>Plays</th><th>Total playtime</th></tr></thead>
+                <tbody id="analyticsByAdBody"></tbody>
+              </table>
+            </div>
           </div>
         </section>
 

@@ -175,11 +175,11 @@ function renderPlaylistsTable() {
   document.getElementById("playlistsBody").innerHTML = playlistsCache.map(p => `
     <tr>
       <td>${p.name}</td>
-      <td>${(p.items || []).length} items</td>
+      <td><span class="badge">${(p.items || []).length} items</span></td>
       <td>
-        <button class="secondary" onclick="editPlaylist('${p.id}')">Edit</button>
-        <button class="secondary danger" onclick="deletePlaylist('${p.id}')">Delete</button>
-      </td>
+  <button class="secondary" onclick="editPlaylist('${p.id}')">Edit</button>
+  <button class="secondary" onclick="deletePlaylist('${p.id}')">Delete</button>
+</td>
     </tr>`).join("");
 }
 
