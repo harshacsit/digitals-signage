@@ -1,6 +1,8 @@
-export const appState = {
-  playlistsCache: [],
-  screenRows: {},
-  screenDataCache: {},
-  editingPlaylistId: null
-};
+(function () {
+  window.AppState = window.AppState || {
+    playlistsCache: [],
+    screenRows: {},
+    screenDataCache: {},
+    editingPlaylistId: null
+  };
+})();
