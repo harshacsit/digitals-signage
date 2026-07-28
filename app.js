@@ -287,7 +287,6 @@ function formatPlaytime(totalSeconds) {
   const secs = Math.round(totalSeconds % 60);
   return mins === 0 ? `${secs}s` : `${mins}m ${secs}s`;
 }
-
 function loadAnalytics() {
   const dateInput = document.getElementById("analyticsDateFilter").value;
   if (!dateInput) return;
@@ -295,22 +294,29 @@ function loadAnalytics() {
   const screenId = document.getElementById("analyticsScreenFilter").value;
   const byScreenCard = document.getElementById("analyticsByScreenCard");
 
+  document.getElementById("analyticsTotal").textContent = "Loading…";
+
   if (screenId) {
     byScreenCard.style.display = "none";
     db.collection("analytics").doc(`${screenId}_${dateKey}`).collection("items").get()
       .then(snapshot => renderAnalytics(snapshot.docs.map(d => d.data()), false))
       .catch(err => {
-        console.error(err);
-        document.getElementById("analyticsTotal").textContent = "Couldn't load analytics for this screen/date.";
+        console.error("Analytics (single screen) query failed:", err.code, err.message);
+        document.getElementById("analyticsTotal").textContent =
+          err.code === "permission-denied"
+            ? "Couldn't load — no permission to view analytics. Check Firestore rules."
+            : "Couldn't load analytics for this screen/date.";
       });
   } else {
     byScreenCard.style.display = "block";
     db.collectionGroup("items").where("date", "==", dateKey).get()
       .then(snapshot => renderAnalytics(snapshot.docs.map(d => d.data()), true))
       .catch(err => {
-        console.error(err);
+        console.error("Analytics (all screens) query failed:", err.code, err.message);
         document.getElementById("analyticsTotal").textContent =
-          "Couldn't load — check the browser console, Firestore may need a one-time index (it gives you a link to create it).";
+          err.code === "permission-denied"
+            ? "Couldn't load — no permission to view analytics. Check Firestore rules."
+            : "Couldn't load — check the browser console, Firestore may need a one-time index (it gives you a link to create it).";
       });
   }
 }
