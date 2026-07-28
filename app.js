@@ -102,7 +102,7 @@ function watchScreens() {
 
 function renderScreenRow(docId, s) {
   const lastSeenMs = s.lastSeen ? s.lastSeen.toMillis() : 0;
-  const isOnline = Date.now() - lastSeenMs < 120000;
+  const isOnline = Date.now() - lastSeenMs < 720000;
 
   let tr = screenRows[docId];
   if (!tr) {
