@@ -34,5 +34,7 @@
   };
 
   authManager.bind();
-  playlists.addPlaylistItemRow();
+  if (document.getElementById("playlistItems")) {
+    playlists.addPlaylistItemRow();
+  }
 })();

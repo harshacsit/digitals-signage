@@ -44,25 +44,33 @@
 
       totalEl.textContent = "Loading…";
 
+      const showError = (message) => {
+        totalEl.textContent = message;
+        const byAdBody = document.getElementById("analyticsByAdBody");
+        if (byAdBody) byAdBody.innerHTML = `<tr><td colspan="4">${message}</td></tr>`;
+        const byScreenBody = document.getElementById("analyticsByScreenBody");
+        if (byScreenBody) byScreenBody.innerHTML = `<tr><td colspan="3">${message}</td></tr>`;
+      };
+
       if (screenId) {
         byScreenCard.style.display = "none";
         db.collection("analytics").doc(`${screenId}_${dateKey}`).collection("items").get()
           .then((snapshot) => renderAnalytics(snapshot.docs.map((doc) => doc.data()), false))
           .catch((err) => {
-            console.error("Analytics (single screen) query failed:", err.code, err.message);
-            totalEl.textContent = err.code === "permission-denied"
-              ? "Couldn't load — no permission to view analytics. Check Firestore rules."
+            const message = err.code === "permission-denied"
+              ? "Couldn't load analytics — your Firebase rules may be blocking this view."
               : "Couldn't load analytics for this screen/date.";
+            showError(message);
           });
       } else {
         byScreenCard.style.display = "block";
         db.collectionGroup("items").where("date", "==", dateKey).get()
           .then((snapshot) => renderAnalytics(snapshot.docs.map((doc) => doc.data()), true))
           .catch((err) => {
-            console.error("Analytics (all screens) query failed:", err.code, err.message);
-            totalEl.textContent = err.code === "permission-denied"
-              ? "Couldn't load — no permission to view analytics. Check Firestore rules."
-              : "Couldn't load — check the browser console, Firestore may need a one-time index (it gives you a link to create it).";
+            const message = err.code === "permission-denied"
+              ? "Couldn't load analytics — your Firebase rules may be blocking this view."
+              : "Couldn't load analytics for this date.";
+            showError(message);
           });
       }
     }
