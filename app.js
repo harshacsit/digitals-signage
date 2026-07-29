@@ -19,8 +19,12 @@
   window.login = authManager.login;
   window.logout = authManager.logout;
   window.addScreen = screens.addScreen;
-  window.assignRotation = screens.assignRotation;
-  window.assignPlaylist = screens.assignPlaylist;
+  window.startRename = screens.startRename;
+  window.cancelRename = screens.cancelRename;
+  window.saveRename = screens.saveRename;
+  window.onPlaylistChange = screens.onPlaylistChange;
+  window.onRotationChange = screens.onRotationChange;
+  window.pushChanges = screens.pushChanges;
   window.removeScreen = screens.removeScreen;
   window.editPlaylist = playlists.editPlaylist;
   window.deletePlaylist = playlists.deletePlaylist;
