@@ -39,7 +39,7 @@ The Dashboard application follows a modular JavaScript architecture where each f
 Each module has a single responsibility. Shared application state is maintained in a central module, Firebase handles authentication and database communication, feature modules manage business logic, and the main application file coordinates all modules and initializes the application.
 
 ## Architechure flow
-
+```text
 User
    │
    ▼
@@ -65,7 +65,7 @@ auth.js      screens.js    playlists.js   analytics.js
                   │
                   ▼
          Cloud Firestore Database
-
+```
 This module-per-concern split exists specifically so two people can work
 in parallel without merge conflicts: dashboard logic changes live in
 `modules/*.js` + `app.js`; **all UI/styling changes are confined to
