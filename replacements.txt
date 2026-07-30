@@ -1,4 +1,4 @@
-YOUR_ENV_VARIABLE_NAME==>YOUR_ENV_VARIABLE_NAME
-***REMOVED***==>***REMOVED***
-***REMOVED***==>***REMOVED***
-***REMOVED***==>***REMOVED***
+AIzaSyBq6nQFLJBQvEdOUjg7KtzpaWZ4H1reb6c==>YOUR_ENV_VARIABLE_NAME
+my-signage-app-d0b8a.firebaseapp.com==>***REMOVED***
+my-signage-app-d0b8a.firebasestorage.app==>***REMOVED***
+1:1004716989793:web:bba0b9234929e3373e3920  ==>***REMOVED***
