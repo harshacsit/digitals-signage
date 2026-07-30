@@ -1,4 +1,4 @@
-# Signage Dashboard
+# Bhimavaram Digitals Signage Dashboard
 
 Web-based admin console for Bhimavaram Digitals's digital signage network.
 Lets operators pair screens, build ad playlists, assign playlists to
