@@ -33,6 +33,7 @@ Raspberry Pi.
 | Hosting | GitHub Pages |
 | Video storage referenced | Cloudflare R2 (uploaded via a separate tool/repo) |
 
+
 ## Architecture
 The Dashboard application follows a modular JavaScript architecture where each feature is implemented as an independent module. Instead of using a framework or bundler, the application loads plain JavaScript files directly in the browser. This approach keeps the project lightweight, easy to understand, and suitable for deployment as a static web application.
 
@@ -66,6 +67,8 @@ auth.js      screens.js    playlists.js   analytics.js
                   ▼
          Cloud Firestore Database
 ```
+
+
 This module-per-concern split exists specifically so two people can work
 in parallel without merge conflicts: dashboard logic changes live in
 `modules/*.js` + `app.js`; **all UI/styling changes are confined to
@@ -131,7 +134,7 @@ Full field-level schema and security rules rationale in
 -  in this repo as player.html and player.js— Chromium kiosk player for Raspberry Pi
   (shares this Firestore backend, no dashboard code)
 
-## License
+
 
 ## License
 
