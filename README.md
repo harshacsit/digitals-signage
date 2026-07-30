@@ -1,4 +1,4 @@
-# Bhimavaram Digitals Signage Dashboard
+<img width="1288" height="362" alt="image" src="https://github.com/user-attachments/assets/3511e1cd-87ea-4c2d-9a2a-053f64114481" /># Bhimavaram Digitals Signage Dashboard
 
 Web-based admin console for Bhimavaram Digitals's digital signage network.
 Lets operators pair screens, build ad playlists, assign playlists to
@@ -130,7 +130,7 @@ Full field-level schema and security rules rationale in
 
 ## Related Repos/info
 
-- [https://github.com/harshacsit/signage_player.git](link) — Android TV client
+- [repo of Tv player](https://github.com/harshacsit/signage_player.git) — Android TV client
 -  in this repo as player.html and player.js— Chromium kiosk player for Raspberry Pi
   (shares this Firestore backend, no dashboard code)
 
