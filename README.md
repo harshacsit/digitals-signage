@@ -5,6 +5,9 @@ Lets operators pair screens, build ad playlists, assign playlists to
 screens, and review playback analytics — all backed by Firestore in real
 time, with zero page refresh needed.
 
+
+For More details:documnets ->> technical_documentation(https://github.com/harshacsit/digitals-signage/blob/main/documents/Bhimavaram_Digitals_Technical_Documentation.docx )
+
 ## Overview
 
 The dashboard is a static site (vanilla JS/HTML/CSS, Bootstrap 5) that talks
