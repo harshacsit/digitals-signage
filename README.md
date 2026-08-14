@@ -5,6 +5,9 @@ Lets operators pair screens, build ad playlists, assign playlists to
 screens, and review playback analytics — all backed by Firestore in real
 time, with zero page refresh needed.
 
+
+For More details:documnets ->> technical_documentation(https://github.com/harshacsit/digitals-signage/blob/main/documents/Bhimavaram_Digitals_Technical_Documentation.docx )
+
 ## Overview
 
 The dashboard is a static site (vanilla JS/HTML/CSS, Bootstrap 5) that talks
@@ -130,7 +133,7 @@ Full field-level schema and security rules rationale in
 
 ## Related Repos/info
 
-- [https://github.com/harshacsit/signage_player.git](link) — Android TV client
+- [repo of Tv player](https://github.com/harshacsit/signage_player.git) — Android TV client
 -  in this repo as player.html and player.js— Chromium kiosk player for Raspberry Pi
   (shares this Firestore backend, no dashboard code)
 
