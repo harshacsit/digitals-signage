@@ -3,10 +3,17 @@
   const appState = window.AppState;
 
   AppModules.createAnalyticsModule = function createAnalyticsModule({ db }) {
+    function getLocalDateString(d = new Date()) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
     function initAnalyticsFilters() {
       const dateInput = document.getElementById("analyticsDateFilter");
       if (dateInput && !dateInput.value) {
-        dateInput.value = new Date().toISOString().slice(0, 10);
+        dateInput.value = getLocalDateString();
       }
     }
 

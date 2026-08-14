@@ -15,17 +15,27 @@
         });
 
         renderPlaylistsTable();
+        if (typeof window.renderGroupsTable === "function") {
+          window.renderGroupsTable();
+        }
       });
     }
 
     function renderPlaylistsTable() {
-      document.getElementById("playlistsBody").innerHTML = appState.playlistsCache.map((p) => `
+      const container = document.getElementById("playlistsBody");
+      if (!container) return;
+      if (appState.playlistsCache.length === 0) {
+        container.innerHTML = `<tr><td colspan="3" class="text-muted text-center py-3">No playlists created yet. Create one below!</td></tr>`;
+        return;
+      }
+
+      container.innerHTML = appState.playlistsCache.map((p) => `
         <tr>
-          <td>${p.name}</td>
-          <td><span class="badge">${(p.items || []).length} items</span></td>
-          <td>
-            <button class="secondary" onclick="editPlaylist('${p.id}')">Edit</button>
-            <button class="secondary" onclick="deletePlaylist('${p.id}')">Delete</button>
+          <td><span class="fw-medium">${p.name}</span></td>
+          <td><span class="badge bg-secondary-subtle text-dark border px-2 py-1">${(p.items || []).length} items</span></td>
+          <td class="text-end">
+            <button class="secondary me-1" onclick="editPlaylist('${p.id}')">Edit</button>
+            <button class="secondary danger" onclick="deletePlaylist('${p.id}')">Delete</button>
           </td>
         </tr>`).join("");
     }
@@ -39,11 +49,18 @@
       document.getElementById("playlistItems").innerHTML = "";
       (playlist.items || []).forEach((item) => addPlaylistItemRow(item));
       document.getElementById("playlistName").scrollIntoView({ behavior: "smooth" });
+      if (AppModules.showToast) AppModules.showToast(`Editing playlist '${playlist.name}'`, "info");
     }
 
     function deletePlaylist(id) {
-      if (!confirm("Delete this playlist? Screens still assigned to it will keep showing their last content until you reassign them.")) return;
-      db.collection("playlists").doc(id).delete();
+      if (!confirm("Delete this playlist? Assigned screens will keep showing their active content until re-assigned.")) return;
+      db.collection("playlists").doc(id).delete()
+        .then(() => {
+          if (AppModules.showToast) AppModules.showToast("Playlist deleted.", "info");
+        })
+        .catch((err) => {
+          if (AppModules.showToast) AppModules.showToast(`Delete failed: ${err.message}`, "error");
+        });
     }
 
     function addPlaylistItemRow(data = {}) {
@@ -52,12 +69,15 @@
       row.className = "item-row";
       row.innerHTML = `
         <select class="itemType">
-          <option value="image" ${data.type !== "video" && data.type !== "web" ? "selected" : ""}>Image</option>
-          <option value="video" ${data.type === "video" ? "selected" : ""}>Video</option>
-          <option value="web" ${data.type === "web" ? "selected" : ""}>Web Page / YouTube</option>
+          <option value="image" ${data.type !== "video" && data.type !== "web" ? "selected" : ""}>📷 Image</option>
+          <option value="video" ${data.type === "video" ? "selected" : ""}>🎬 Video</option>
+          <option value="web" ${data.type === "web" ? "selected" : ""}>🌐 Web Page / YouTube</option>
         </select>
-        <input class="itemUrl" placeholder="Media URL (or YouTube link for Web Page)" value="${data.url || ""}" />
-        <input class="itemDuration" type="number" placeholder="Seconds" value="${data.durationSeconds || 8}" style="width:120px" />
+        <input class="itemUrl" placeholder="Media URL (e.g. https://... or YouTube link)" value="${data.url || ""}" />
+        <div class="d-flex align-items-center gap-1">
+          <input class="itemDuration" type="number" placeholder="Sec" value="${data.durationSeconds || 8}" style="width:75px" />
+          <span class="small text-muted">sec</span>
+        </div>
         <select class="itemResizeMode">
           <option value="fit">Fit (bars)</option>
           <option value="fill">Fill (crop)</option>
@@ -70,12 +90,12 @@
           <option value="270" ${data.rotation === 270 ? "selected" : ""}>270°</option>
         </select>
 
-        <label style="display:flex;align-items:center;gap:4px;">
+        <label class="small text-muted d-flex align-items-center gap-1">
           <input type="checkbox" class="itemIsLive" ${data.isLive ? "checked" : ""} />
           Live
         </label>
 
-        <button onclick="this.parentElement.remove()">✕</button>
+        <button class="btn-remove ms-auto" onclick="this.parentElement.remove()" title="Remove item">✕</button>
       `;
 
       container.appendChild(row);
@@ -83,10 +103,18 @@
 
     function savePlaylist() {
       const name = document.getElementById("playlistName").value.trim();
-      if (!name) return alert("Give the playlist a name.");
+      if (!name) {
+        if (AppModules.showToast) AppModules.showToast("Please enter a playlist name.", "error");
+        else alert("Give the playlist a name.");
+        return;
+      }
 
       const rows = document.querySelectorAll("#playlistItems .item-row");
-      if (rows.length === 0) return alert("Add at least one item.");
+      if (rows.length === 0) {
+        if (AppModules.showToast) AppModules.showToast("Add at least one item to the playlist.", "error");
+        else alert("Add at least one item.");
+        return;
+      }
 
       const items = Array.from(rows).map((row) => ({
         type: row.querySelector(".itemType").value,
@@ -107,7 +135,10 @@
         db.collection("playlists").doc(appState.editingPlaylistId).update({ name, items })
           .then(() => {
             resetForm();
-            alert("Playlist updated.");
+            if (AppModules.showToast) AppModules.showToast("Playlist updated successfully!", "success");
+          })
+          .catch((err) => {
+            if (AppModules.showToast) AppModules.showToast(`Save failed: ${err.message}`, "error");
           });
       } else {
         db.collection("playlists").add({
@@ -116,7 +147,9 @@
           createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
         }).then(() => {
           resetForm();
-          alert("Playlist saved. Assign it to a screen from the Screens table above.");
+          if (AppModules.showToast) AppModules.showToast("Playlist saved! You can now assign it to a screen.", "success");
+        }).catch((err) => {
+          if (AppModules.showToast) AppModules.showToast(`Save failed: ${err.message}`, "error");
         });
       }
     }
@@ -133,3 +166,4 @@
 
   window.AppModules = AppModules;
 })();
+

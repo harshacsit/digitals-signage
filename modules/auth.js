@@ -6,7 +6,7 @@
       const loginBox = document.getElementById("loginBox");
       const app = document.getElementById("app");
 
-      if (loginBox) loginBox.style.display = user ? "none" : "block";
+      if (loginBox) loginBox.style.display = user ? "none" : "flex";
       if (app) app.style.display = user ? "block" : "none";
     }
 

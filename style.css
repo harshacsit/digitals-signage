@@ -10,10 +10,15 @@
   --text-2: #374151;
   --muted: #6b7280;
   --green: #1fa971;
+  --green-bg: #ecfdf5;
+  --green-text: #047857;
   --amber: #f59e0b;
+  --amber-bg: #fffbeb;
   --amber-text: #d97706;
   --red: #ef4444;
+  --red-bg: #fef2f2;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
 }
 
 * { box-sizing: border-box; }
@@ -24,6 +29,7 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
 .text-primary-brand { color: var(--accent) !important; }
@@ -32,8 +38,14 @@ body {
   color: #fff;
   border: none;
   font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
-.btn-primary-brand:hover { background: var(--accent-hover); color: #fff; }
+.btn-primary-brand:hover {
+  background: var(--accent-hover);
+  color: #fff;
+}
 
 .form-control:focus, .form-select:focus {
   border-color: var(--accent);
@@ -43,12 +55,14 @@ body {
 /* ===================== LOGIN =====================
    NOTE: deliberately not using Bootstrap's d-flex here — that utility
    is !important and would beat the inline style app.js sets on this
-   element ("none"/"block") when toggling login vs dashboard. */
+   element ("none"/"block" or "none"/"flex") when toggling login vs dashboard. */
 #loginBox {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--bg);
+  padding: 20px;
 }
 .login-card {
   background: var(--panel);
@@ -56,6 +70,8 @@ body {
   padding: 48px;
   width: 100%;
   max-width: 400px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
 }
 .brand-mark {
   width: 48px; height: 48px;
@@ -68,12 +84,20 @@ body {
 /* ===================== APP SHELL ===================== */
 #app { display: none; }
 
+.app-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100vw;
+}
+
 .sidebar {
   width: 220px;
   min-width: 220px;
   background: var(--panel);
   border-right: 1px solid var(--border);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 .brand-mark-sm {
   width: 28px; height: 28px;
@@ -95,8 +119,10 @@ body {
   font-weight: 400;
   font-size: 14px;
   margin-bottom: 4px;
+  transition: background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
 }
-.navBtn:hover { background: var(--panel-2); }
+.navBtn:hover { background: var(--panel-2); color: var(--accent); }
 .navBtn.active { background: var(--accent); color: #fff; font-weight: 500; }
 
 .sidebar .signOutBtn {
@@ -106,30 +132,33 @@ body {
   font-weight: 400;
   padding: 9px 12px;
   border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
-.sidebar .signOutBtn:hover { background: var(--panel-2); }
+.sidebar .signOutBtn:hover { background: var(--panel-2); color: var(--red); }
 
 /* ===================== MAIN CONTENT ===================== */
-.mainArea { padding: 32px 36px; max-width: 1100px; }
+.mainArea { padding: 24px 28px; width: 100%; max-width: 100%; }
 .pageHeader { margin-bottom: 24px; }
-.pageHeader h1 { font-size: 28px; font-weight: 700; color: var(--accent); margin: 0; }
-.pageHeader .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.pageHeader h1 { font-size: 26px; font-weight: 700; color: var(--accent); margin: 0; }
+.pageHeader .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
 
 .view { display: none; }
 .view.active { display: block; }
 
 .card {
   background: var(--panel);
-  border: none;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 24px;
+  padding: 20px;
   box-shadow: var(--shadow);
   margin-bottom: 24px;
 }
-.card h2 { font-size: 15px; color: var(--text); font-weight: 600; margin: 0 0 20px; display: flex; align-items: center; }
+.card h2 { font-size: 15px; color: var(--text); font-weight: 600; margin: 0 0 16px; display: flex; align-items: center; }
 .card-table-header {
-  padding: 20px 24px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--row-border);
+  background: var(--panel);
 }
 .card-table-header h2 { margin: 0; }
 
@@ -149,45 +178,122 @@ body {
   font-size: 13px;
   color: var(--text-2);
   font-weight: 500;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+.status-total-pill.is-online {
+  border-color: var(--green);
+  background: var(--green-bg);
+  color: var(--green-text);
+  box-shadow: 0 0 0 2px rgba(31, 169, 113, 0.15);
 }
 
 /* ===================== TABLES ===================== */
+.table {
+  width: 100%;
+}
+
 .table th {
   color: var(--muted);
-  font-weight: 500;
-  font-size: 13px;
-  text-transform: none;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   border-bottom: 1px solid var(--row-border);
-  padding: 12px 24px;
+  padding: 10px 12px;
+  white-space: nowrap;
 }
 .table td {
-  padding: 14px 24px;
-  font-size: 14px;
+  padding: 10px 12px;
+  font-size: 13px;
   vertical-align: middle;
   border-bottom: 1px solid var(--row-border);
+  color: var(--text-2);
 }
 .table tr:last-child td { border-bottom: none; }
+.table tr.row-has-pending { background-color: var(--panel-2); }
+.table tr.row-is-online { border-left: 4px solid var(--green); }
 thead.blueHead { background: var(--accent); }
 thead.blueHead th { color: #fff; }
 
-.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
-.dot.online { background: var(--green); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; flex-shrink: 0; }
+.dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
 .dot.offline { background: var(--amber); }
 
-/* Plain selects app.js injects into table cells */
-#screensBody select {
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1.5px solid transparent;
+  transition: all 0.2s ease;
+}
+.badge-status.online {
+  background: var(--green-bg);
+  color: var(--green-text);
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(31, 169, 113, 0.18);
+}
+.badge-status.offline {
+  background: var(--amber-bg);
+  color: var(--amber-text);
+  border-color: var(--amber);
+}
+
+/* Plain selects/inputs app.js injects into table cells */
+#screensBody select,
+#screensBody input[type="text"],
+#screensBody input[type="number"] {
   background: var(--panel);
   border: 1px solid #d1d5db;
   color: var(--text-2);
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12.5px;
+  outline: none;
+  max-width: 155px;
+  width: 100%;
 }
+#screensBody select:focus,
+#screensBody input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(26, 86, 219, 0.15);
+}
+#screensBody select.splitRatioSelect { max-width: 135px; }
+#screensBody select.bottomScrollSelect { max-width: 115px; }
 
 .analytics-total {
   font-size: 22px;
   font-weight: 700;
   color: var(--accent);
+}
+
+.status-filter-group .filter-pill {
+  background: var(--panel);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.status-filter-group .filter-pill:hover {
+  background: var(--panel-2);
+  color: var(--accent);
+}
+.status-filter-group .filter-pill.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 2px 6px rgba(26, 86, 219, 0.2);
 }
 
 /* ===================== BUTTONS app.js RE-USES ===================== */
@@ -199,6 +305,8 @@ button.secondary {
   border-radius: 5px;
   font-size: 13px;
   font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 button.secondary:hover { background: var(--panel-2); }
 button.secondary.danger {
@@ -206,6 +314,93 @@ button.secondary.danger {
   border: 1px solid var(--amber);
 }
 button.secondary.danger:hover { background: #fffbeb; }
+
+.badge-unsaved {
+  display: inline-block;
+  background: var(--panel-2);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* ===== primaryPush button ===== */
+button.primaryPush {
+  background: #cbd5e1;
+  color: #94a3b8;
+  border: 1px solid transparent;
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: not-allowed;
+  transition: all 0.15s ease;
+}
+button.primaryPush.has-pending,
+button.primaryPush:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(26, 86, 219, 0.25);
+}
+button.primaryPush.has-pending:hover,
+button.primaryPush:not(:disabled):hover {
+  background: var(--accent-hover);
+}
+
+.renameField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.renameInput {
+  background: var(--panel);
+  border: 1px solid #d1d5db;
+  color: var(--text-2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* ===================== TOAST NOTIFICATIONS ===================== */
+#toastContainer {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 260px;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: all 0.2s ease;
+  pointer-events: auto;
+}
+.toast-item.show { opacity: 1; transform: translateY(0); }
+.toast-success { border-left: 4px solid var(--green); }
+.toast-error { border-left: 4px solid var(--red); }
+.toast-info { border-left: 4px solid var(--accent); }
 
 /* ===================== MOBILE NAV ===================== */
 .mobileTopbar {
@@ -225,6 +420,7 @@ button.secondary.danger:hover { background: #fffbeb; }
   color: var(--text-2);
   padding: 4px 6px;
   border-radius: 6px;
+  cursor: pointer;
 }
 .hamburgerBtn:hover { background: var(--panel-2); }
 
@@ -272,6 +468,7 @@ button.secondary.danger:hover { background: #fffbeb; }
   background: var(--panel-2);
   padding: 10px 12px;
   border-radius: 8px;
+  border: 1px solid var(--border);
 }
 .item-row select,
 .item-row input {
@@ -281,8 +478,15 @@ button.secondary.danger:hover { background: #fffbeb; }
   padding: 8px 10px;
   border-radius: 6px;
   font-size: 13px;
+  outline: none;
+}
+.item-row select:focus,
+.item-row input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(26, 86, 219, 0.15);
 }
 .item-row .itemUrl { flex: 1; min-width: 180px; }
+.item-row button.btn-remove,
 .item-row button {
   background: var(--red);
   color: #fff;
@@ -290,43 +494,31 @@ button.secondary.danger:hover { background: #fffbeb; }
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
+.item-row button.btn-remove:hover,
 .item-row button:hover { background: #dc3730; }
 
-/* ===================== ROW ACTIONS (Rename / Push / Remove) ===================== */
-.rowActions {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-  flex-wrap: nowrap;
+/* ===================== GROUPS MODULE ===================== */
+.group-screen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  max-height: 240px;
+  overflow-y: auto;
 }
-button.secondary.primaryPush {
-  background: var(--accent);
-  color: #fff;
-  border: 1px solid var(--accent);
-}
-button.secondary.primaryPush:hover:not(:disabled) { background: var(--accent-hover); }
-button.secondary.primaryPush:disabled {
+.group-screen-item {
   background: var(--panel);
-  color: var(--muted);
   border: 1px solid var(--border);
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-/* ===================== RENAME FIELD ===================== */
-.renameField {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.renameInput {
-  background: var(--panel);
-  border: 1px solid var(--accent);
-  color: var(--text);
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 6px;
-  font-size: 13px;
-  width: 150px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-.renameInput:focus { outline: none; box-shadow: 0 0 0 2px rgba(26, 86, 219, 0.15); }
+.group-screen-item:hover {
+  border-color: var(--accent);
+  background: var(--panel-2);
+}
+.cursor-pointer { cursor: pointer; }
+
+

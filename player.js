@@ -39,6 +39,10 @@
           createdAt: window.firebase.firestore.FieldValue.serverTimestamp(),
           lastSeen: window.firebase.firestore.FieldValue.serverTimestamp()
         });
+      } else {
+        ref.update({
+          lastSeen: window.firebase.firestore.FieldValue.serverTimestamp()
+        }).catch((err) => console.error("Update lastSeen failed", err));
       }
     });
   }
@@ -134,8 +138,15 @@
       videoEl.style.display = "block";
       videoEl.style.objectFit = resizeMode === "fill" ? "cover" : resizeMode === "stretch" ? "fill" : "contain";
       applyItemRotation(videoEl, itemRotation);
+      videoEl.onerror = () => {
+        console.warn("Video failed to load:", url);
+        advanceTimer = setTimeout(advance, 2000);
+      };
       videoEl.src = url;
-      videoEl.play().catch((error) => console.error("Video play failed", error));
+      videoEl.play().catch((error) => {
+        console.error("Video play failed", error);
+        advanceTimer = setTimeout(advance, 3000);
+      });
 
       if (item.durationSeconds) {
         advanceTimer = setTimeout(advance, durationMs);
@@ -157,9 +168,14 @@
       imageEl.style.display = "block";
       imageEl.style.objectFit = resizeMode === "fill" ? "cover" : resizeMode === "stretch" ? "fill" : "contain";
       applyItemRotation(imageEl, itemRotation);
+      imageEl.onerror = () => {
+        console.warn("Image failed to load:", url);
+        advanceTimer = setTimeout(advance, 2000);
+      };
       imageEl.src = url;
       advanceTimer = setTimeout(advance, durationMs);
     }
+
   }
 
   function advance() {
@@ -181,12 +197,14 @@
     return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0${loopParams}&rel=0&playsinline=1`;
   }
 
+  let analyticsBuffer = {};
+
   function startHeartbeat() {
     setInterval(() => {
       db.collection("screens").doc(screenId).update({
         lastSeen: window.firebase.firestore.FieldValue.serverTimestamp()
       }).catch((error) => console.error("Heartbeat failed", error));
-    }, 30000);
+    }, 300000);
   }
 
   function logPreviousItemPlayback() {
@@ -194,28 +212,60 @@
     const playedMs = Date.now() - currentItemStartTime;
     currentItemStartTime = 0;
     if (playedMs < 500) return;
-    logPlaybackEvent(currentItemForLogging, playedMs);
+    bufferPlaybackEvent(currentItemForLogging, playedMs);
   }
 
-  function logPlaybackEvent(item, playedMs) {
+  function bufferPlaybackEvent(item, playedMs) {
     const url = item.url;
     const type = item.type || "video";
     const playedSeconds = playedMs / 1000.0;
 
     const now = new Date();
     const dateKey = now.getFullYear().toString() + String(now.getMonth() + 1).padStart(2, "0") + String(now.getDate()).padStart(2, "0");
-    const dayDocId = `${screenId}_${dateKey}`;
-    const itemDocId = encodeURIComponent(url).slice(0, 300);
+    const key = `${dateKey}||${url}`;
 
-    db.collection("analytics").doc(dayDocId).collection("items").doc(itemDocId).set({
-      screenId,
-      date: dateKey,
-      url,
-      type,
-      playCount: window.firebase.firestore.FieldValue.increment(1),
-      totalSeconds: window.firebase.firestore.FieldValue.increment(playedSeconds),
-      lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true }).catch((error) => console.error("Analytics log failed", error));
+    if (!analyticsBuffer[key]) {
+      analyticsBuffer[key] = { dateKey, url, type, playCount: 0, totalSeconds: 0 };
+    }
+    analyticsBuffer[key].playCount += 1;
+    analyticsBuffer[key].totalSeconds += playedSeconds;
+  }
+
+  function flushAnalyticsBuffer() {
+    const keys = Object.keys(analyticsBuffer);
+    if (keys.length === 0) return;
+
+    const batch = db.batch();
+    let batchCount = 0;
+
+    keys.forEach((key) => {
+      const data = analyticsBuffer[key];
+      delete analyticsBuffer[key];
+
+      const dayDocId = `${screenId}_${data.dateKey}`;
+      const itemDocId = encodeURIComponent(data.url).slice(0, 300);
+      const ref = db.collection("analytics").doc(dayDocId).collection("items").doc(itemDocId);
+
+      batch.set(ref, {
+        screenId,
+        date: data.dateKey,
+        url: data.url,
+        type: data.type,
+        playCount: window.firebase.firestore.FieldValue.increment(data.playCount),
+        totalSeconds: window.firebase.firestore.FieldValue.increment(data.totalSeconds),
+        lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      batchCount++;
+    });
+
+    if (batchCount > 0) {
+      batch.commit().catch((error) => console.error("Analytics flush failed", error));
+    }
+  }
+
+  function startAnalyticsFlusher() {
+    setInterval(flushAnalyticsBuffer, 900000);
   }
 
   screenId = getOrCreateScreenId();
@@ -227,8 +277,12 @@
       registerScreenIfNeeded();
       watchScreenDoc();
       startHeartbeat();
+      startAnalyticsFlusher();
     }
   });
 
-  window.addEventListener("beforeunload", logPreviousItemPlayback);
+  window.addEventListener("beforeunload", () => {
+    logPreviousItemPlayback();
+    flushAnalyticsBuffer();
+  });
 })();
