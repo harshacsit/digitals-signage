@@ -29,9 +29,10 @@
   window.onRotationChange = screens.onRotationChange;
   window.onLayoutChange = screens.onLayoutChange;
   window.onLayoutModeChange = screens.onLayoutModeChange;
-  window.onBottomPlaylistChange = screens.onBottomPlaylistChange;
+  // ===== CHANGED: was window.onBottomPlaylistChange = screens.onBottomPlaylistChange
+  // (that function no longer exists — the bottom zone is a URL field now, not a playlist)
+  window.onBottomWebUrlChange = screens.onBottomWebUrlChange;
   window.onSplitRatioChange = screens.onSplitRatioChange;
-  window.onBottomScrollChange = screens.onBottomScrollChange;
   window.pushChanges = screens.pushChanges;
   window.removeScreen = screens.removeScreen;
   window.filterScreensByStatus = screens.filterScreensByStatus;
@@ -51,7 +52,8 @@
   window.applyGroupSettings = groups.applyGroupSettings;
   window.onGroupLayoutChange = groups.onGroupLayoutChange;
   window.onGroupPlaylistChange = groups.onGroupPlaylistChange;
-  window.onGroupBottomPlaylistChange = groups.onGroupBottomPlaylistChange;
+  // ===== CHANGED: was window.onGroupBottomPlaylistChange = groups.onGroupBottomPlaylistChange
+  window.onGroupBottomWebUrlChange = groups.onGroupBottomWebUrlChange;
   window.onGroupSplitRatioChange = groups.onGroupSplitRatioChange;
   window.onGroupRotationChange = groups.onGroupRotationChange;
   window.renderGroupsTable = groups.renderGroupsTable;
@@ -65,4 +67,4 @@
   if (document.getElementById("playlistItems")) {
     playlists.addPlaylistItemRow();
   }
-})();
+})();

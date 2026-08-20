@@ -112,21 +112,17 @@
       renderContent(topWrap, nowPlaying.type, nowPlaying.url);
       bodyEl.appendChild(topWrap);
 
-      if (s.layoutMode === "split" && (s.bottomPlaylist || s.bottomWebUrl)) {
+      // ===== CHANGED: bottom zone is gated on bottomWebUrl only — matches the
+      // Android-side gate (layoutMode == "split" && bottomWebUrl != null).
+      // The old bottomPlaylist branch is removed; that field is no longer written.
+      if (s.layoutMode === "split" && s.bottomWebUrl) {
         const bottomLabel = document.createElement("div");
         bottomLabel.style.cssText = "font-size:12px;color:#6b7280;margin:14px 0 6px;";
         bottomLabel.textContent = `Bottom zone (${s.splitRatio || 20}%)`;
         bodyEl.appendChild(bottomLabel);
 
         const bottomWrap = document.createElement("div");
-        if (s.bottomPlaylist) {
-          const appState = window.AppState || {};
-          const bp = (appState.playlistsCache || []).find(p => p.id === s.bottomPlaylist);
-          const bpName = bp ? bp.name : s.bottomPlaylist;
-          bottomWrap.innerHTML = `<div style="padding:12px;background:#f9fafb;border-radius:8px;font-size:13px;color:#374151;">Bottom Playlist: <strong>${bpName}</strong></div>`;
-        } else {
-          renderContent(bottomWrap, "web", s.bottomWebUrl);
-        }
+        renderContent(bottomWrap, "web", s.bottomWebUrl);
         bodyEl.appendChild(bottomWrap);
       }
 

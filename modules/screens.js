@@ -2,11 +2,13 @@
   const AppModules = window.AppModules || {};
   const appState = window.AppState;
 
-  // Tracks unsaved dropdown edits per screen until "Push" is clicked.
-  // { screenId: { playlist?, rotation?, layoutMode?, bottomPlaylist?, splitRatio? } }
+  // Tracks unsaved dropdown/input edits per screen until "Push" is clicked.
+  // { screenId: { playlist?, rotation?, layoutMode?, bottomWebUrl?, splitRatio? } }
   appState.pendingChanges = appState.pendingChanges || {};
   // Tracks which screen row is currently in rename mode.
   appState.renamingScreenId = appState.renamingScreenId || null;
+  // Tracks the last known online status of each screen
+  appState.screenOnlineStatus = appState.screenOnlineStatus || {};
 
   const SPLIT_RATIO_OPTIONS = [10, 20, 30, 40];
   const DEFAULT_SPLIT_RATIO = 20;
@@ -43,6 +45,68 @@
   }
 
   AppModules.createScreensModule = function createScreensModule({ db }) {
+    let offlineCheckInterval = null;
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(err => {
+        console.warn("Service worker registration failed", err);
+      });
+    }
+
+    function triggerNotification(title, body) {
+      if ("Notification" in window && Notification.permission === "granted") {
+        if ("serviceWorker" in navigator && navigator.serviceWorker.ready) {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(title, { body, requireInteraction: true });
+          }).catch(() => {
+            new Notification(title, { body });
+          });
+        } else {
+          new Notification(title, { body });
+        }
+      }
+    }
+
+    function checkScreenStatuses() {
+      let onlineCount = 0;
+      let pairedCount = 0;
+
+      Object.keys(appState.screenDataCache).forEach(docId => {
+        const s = appState.screenDataCache[docId];
+        if (s.status !== "paired") return;
+
+        pairedCount++;
+        const lastSeenMs = getTimestampMs(s.lastSeen);
+        const isOnline = Date.now() - lastSeenMs < 900000;
+
+        const previousStatus = appState.screenOnlineStatus[docId];
+
+        if (previousStatus === true && !isOnline) {
+          triggerNotification("Screen Offline", `Screen "${s.name || docId}" has gone offline.`);
+        } else if (previousStatus === false && isOnline) {
+          triggerNotification("Screen Online", `Screen "${s.name || docId}" is back online.`);
+        }
+
+        appState.screenOnlineStatus[docId] = isOnline;
+
+        if (isOnline) onlineCount++;
+
+        // Re-render to update the UI status indicator dynamically
+        renderScreenRow(docId, s);
+      });
+
+      const countEl = document.getElementById("screenCount");
+      const pillEl = document.querySelector(".status-total-pill");
+      if (countEl) countEl.textContent = `${onlineCount} of ${pairedCount} screens online`;
+      if (pillEl) {
+        if (onlineCount > 0) {
+          pillEl.classList.add("is-online");
+        } else {
+          pillEl.classList.remove("is-online");
+        }
+      }
+    }
+
     function addScreen() {
       const code = document.getElementById("pairCode").value.trim().toUpperCase();
       const name = document.getElementById("pairName").value.trim();
@@ -64,6 +128,13 @@
     }
 
     function watchScreens() {
+      if (!offlineCheckInterval) {
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission();
+        }
+        offlineCheckInterval = setInterval(checkScreenStatuses, 60000);
+      }
+
       db.collection("screens").onSnapshot((snapshot) => {
         let pairedCount = 0;
         let onlineCount = 0;
@@ -73,7 +144,13 @@
           if (s.status === "paired") {
             pairedCount++;
             const lastSeenMs = getTimestampMs(s.lastSeen);
-            if (Date.now() - lastSeenMs < 900000) onlineCount++;
+            const isOnline = Date.now() - lastSeenMs < 900000;
+            if (isOnline) onlineCount++;
+            
+            // Track initial status so we don't spam notifications on load
+            if (appState.screenOnlineStatus[doc.id] === undefined) {
+              appState.screenOnlineStatus[doc.id] = isOnline;
+            }
           }
         });
 
@@ -98,6 +175,7 @@
             }
             delete appState.screenDataCache[doc.id];
             delete appState.pendingChanges[doc.id];
+            delete appState.screenOnlineStatus[doc.id];
             return;
           }
 
@@ -109,8 +187,19 @@
               appState.screenRows[doc.id].remove();
               delete appState.screenRows[doc.id];
             }
+            delete appState.screenOnlineStatus[doc.id];
             return;
           }
+
+          const lastSeenMs = getTimestampMs(s.lastSeen);
+          const isOnline = Date.now() - lastSeenMs < 900000;
+          const previousStatus = appState.screenOnlineStatus[doc.id];
+          
+          if (previousStatus === false && isOnline) {
+            triggerNotification("Screen Online", `Screen "${s.name || doc.id}" is back online.`);
+          }
+          
+          appState.screenOnlineStatus[doc.id] = isOnline;
 
           renderScreenRow(doc.id, s);
         });
@@ -176,6 +265,11 @@
         tr.style.display = "";
       }
 
+      // Preserve focus/in-progress typing in the bottom-URL text input across
+      // re-renders (e.g. triggered by a heartbeat-driven snapshot update).
+      const activeBottomUrlInput = tr.querySelector("input.bottomWebUrlInput");
+      const isEditingBottomUrl = activeBottomUrlInput && document.activeElement === activeBottomUrlInput;
+
       const pending = appState.pendingChanges[docId] || {};
       const effectiveLayoutMode = pending.layoutMode !== undefined ? pending.layoutMode : (s.layoutMode || "single");
       const hasPending = Object.keys(pending).length > 0;
@@ -203,7 +297,7 @@
         <td>${layoutDropdown(docId, s.layoutMode)}</td>
         <td>${playlistDropdown(docId, s.currentPlaylist)}</td>
         <td>${effectiveLayoutMode === "split"
-            ? bottomPlaylistDropdown(docId, s.bottomPlaylist)
+            ? (isEditingBottomUrl ? activeBottomUrlInput.outerHTML : bottomWebUrlInput(docId, s.bottomWebUrl))
             : '<span class="text-muted small">—</span>'}</td>
         <td>${effectiveLayoutMode === "split"
             ? splitRatioDropdown(docId, s.splitRatio)
@@ -218,6 +312,11 @@
           </div>
         </td>
       `;
+
+      if (isEditingBottomUrl) {
+        const restored = tr.querySelector("input.bottomWebUrlInput");
+        if (restored) restored.focus();
+      }
     }
 
     function nameDisplay(docId, name) {
@@ -280,16 +379,18 @@
       </select>`;
     }
 
-    function bottomPlaylistDropdown(screenId, currentBottomPlaylistId) {
-      const pending = appState.pendingChanges[screenId]?.bottomPlaylist;
-      const effectiveVal = pending !== undefined ? pending : (currentBottomPlaylistId || "");
-      const options = appState.playlistsCache.map((p) =>
-        `<option value="${p.id}" ${p.id === effectiveVal ? "selected" : ""}>${p.name}</option>`
-      ).join("");
+    // ===== CHANGED: bottom zone is a URL input, not a playlist picker. =====
+    // The Android player gates the bottom zone on layoutMode == "split" AND
+    // a non-null bottomWebUrl field — it does not read a bottom playlist.
+    function bottomWebUrlInput(screenId, currentBottomWebUrl) {
+      const pending = appState.pendingChanges[screenId]?.bottomWebUrl;
+      const effectiveVal = pending !== undefined ? pending : (currentBottomWebUrl || "");
+      const safeVal = effectiveVal.replace(/"/g, "&quot;");
 
-      return `<select class="bottomPlaylistSelect" onchange="onBottomPlaylistChange('${screenId}', this.value)">
-        <option value="" ${effectiveVal === "" ? "selected" : ""}>— none —</option>${options}
-      </select>`;
+      return `<input type="text" class="bottomWebUrlInput" placeholder="https://... (bottom strip URL)"
+        value="${safeVal}"
+        onchange="onBottomWebUrlChange('${screenId}', this.value)"
+        onblur="onBottomWebUrlChange('${screenId}', this.value)" />`;
     }
 
     function splitRatioDropdown(screenId, currentRatio) {
@@ -339,9 +440,10 @@
       setPendingField(screenId, "playlist", value, committed);
     }
 
-    function onBottomPlaylistChange(screenId, value) {
-      const committed = appState.screenDataCache[screenId]?.bottomPlaylist || "";
-      setPendingField(screenId, "bottomPlaylist", value, committed);
+    // ===== CHANGED: replaces onBottomPlaylistChange =====
+    function onBottomWebUrlChange(screenId, value) {
+      const committed = appState.screenDataCache[screenId]?.bottomWebUrl || "";
+      setPendingField(screenId, "bottomWebUrl", value.trim(), committed);
     }
 
     function onSplitRatioChange(screenId, value) {
@@ -361,7 +463,7 @@
       const update = {};
       if (pending.layoutMode !== undefined) update.layoutMode = pending.layoutMode;
       if (pending.playlist !== undefined) update.currentPlaylist = pending.playlist || null;
-      if (pending.bottomPlaylist !== undefined) update.bottomPlaylist = pending.bottomPlaylist || null;
+      if (pending.bottomWebUrl !== undefined) update.bottomWebUrl = pending.bottomWebUrl || null;
       if (pending.splitRatio !== undefined) update.splitRatio = pending.splitRatio;
       if (pending.rotation !== undefined) update.rotation = pending.rotation;
 
@@ -392,7 +494,7 @@
       onLayoutModeChange,
       onLayoutChange: onLayoutModeChange,
       onPlaylistChange,
-      onBottomPlaylistChange,
+      onBottomWebUrlChange,
       onSplitRatioChange,
       onRotationChange,
       pushChanges,

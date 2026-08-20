@@ -4,7 +4,7 @@
 
   AppModules.createGroupsModule = function createGroupsModule({ db }) {
     // Local storage of group-level unsaved UI settings per groupId before pushing
-    // { groupId: { layoutMode?, playlist?, bottomPlaylist?, splitRatio?, rotation? } }
+    // { groupId: { layoutMode?, playlist?, bottomWebUrl?, splitRatio?, rotation? } }
     const groupSettingsCache = {};
 
     function watchGroups() {
@@ -180,16 +180,14 @@
         const cached = groupSettingsCache[g.id] || {};
         const effectiveLayoutMode = cached.layoutMode !== undefined ? cached.layoutMode : (g.layoutMode || "single");
         const effectivePlaylist = cached.playlist !== undefined ? cached.playlist : (g.currentPlaylist || "");
-        const effectiveBottomPlaylist = cached.bottomPlaylist !== undefined ? cached.bottomPlaylist : (g.bottomPlaylist || "");
+        // ===== CHANGED: was effectiveBottomPlaylist / bottomPlaylistOptions select.
+        // Bottom zone is a URL now, not a playlist — matches Android's gate on bottomWebUrl.
+        const effectiveBottomWebUrl = cached.bottomWebUrl !== undefined ? cached.bottomWebUrl : (g.bottomWebUrl || "");
         const effectiveSplitRatio = cached.splitRatio !== undefined ? cached.splitRatio : (g.splitRatio || 20);
         const effectiveRotation = cached.rotation !== undefined ? cached.rotation : (g.rotation || 0);
 
         const playlistOptions = appState.playlistsCache.map((p) =>
           `<option value="${p.id}" ${p.id === effectivePlaylist ? "selected" : ""}>${p.name}</option>`
-        ).join("");
-
-        const bottomPlaylistOptions = appState.playlistsCache.map((p) =>
-          `<option value="${p.id}" ${p.id === effectiveBottomPlaylist ? "selected" : ""}>${p.name}</option>`
         ).join("");
 
         const ratioOptions = [10, 20, 30, 40].map((pct) =>
@@ -199,6 +197,8 @@
         const rotationOptions = [0, 90, 180, 270].map((deg) =>
           `<option value="${deg}" ${deg === effectiveRotation ? "selected" : ""}>${deg}°</option>`
         ).join("");
+
+        const safeBottomWebUrl = (effectiveBottomWebUrl || "").replace(/"/g, "&quot;");
 
         return `
           <tr>
@@ -221,10 +221,9 @@
             </td>
             <td>
               ${effectiveLayoutMode === "split" ? `
-                <select class="form-select form-select-sm" id="groupBottomPlaylist_${g.id}" onchange="onGroupBottomPlaylistChange('${g.id}', this.value)">
-                  <option value="" ${effectiveBottomPlaylist === "" ? "selected" : ""}>— none —</option>
-                  ${bottomPlaylistOptions}
-                </select>
+                <input type="text" class="form-control form-control-sm" id="groupBottomWebUrl_${g.id}"
+                  placeholder="https://... (bottom strip URL)" value="${safeBottomWebUrl}"
+                  onchange="onGroupBottomWebUrlChange('${g.id}', this.value)" />
               ` : '<span class="text-muted small">—</span>'}
             </td>
             <td>
@@ -262,9 +261,10 @@
       groupSettingsCache[groupId].playlist = val;
     }
 
-    function onGroupBottomPlaylistChange(groupId, val) {
+    // ===== CHANGED: replaces onGroupBottomPlaylistChange =====
+    function onGroupBottomWebUrlChange(groupId, val) {
       if (!groupSettingsCache[groupId]) groupSettingsCache[groupId] = {};
-      groupSettingsCache[groupId].bottomPlaylist = val;
+      groupSettingsCache[groupId].bottomWebUrl = val.trim();
     }
 
     function onGroupSplitRatioChange(groupId, val) {
@@ -290,20 +290,20 @@
 
       const layoutSelect = document.getElementById(`groupLayout_${groupId}`);
       const playlistSelect = document.getElementById(`groupPlaylist_${groupId}`);
-      const bottomPlaylistSelect = document.getElementById(`groupBottomPlaylist_${groupId}`);
+      const bottomWebUrlInput = document.getElementById(`groupBottomWebUrl_${groupId}`);
       const splitRatioSelect = document.getElementById(`groupSplitRatio_${groupId}`);
       const rotationSelect = document.getElementById(`groupRotation_${groupId}`);
 
       const layoutMode = layoutSelect ? layoutSelect.value : (group.layoutMode || "single");
       const currentPlaylist = playlistSelect ? playlistSelect.value : (group.currentPlaylist || "");
-      const bottomPlaylist = bottomPlaylistSelect ? bottomPlaylistSelect.value : (group.bottomPlaylist || "");
+      const bottomWebUrl = bottomWebUrlInput ? bottomWebUrlInput.value.trim() : (group.bottomWebUrl || "");
       const splitRatio = splitRatioSelect ? parseInt(splitRatioSelect.value, 10) : (group.splitRatio || 20);
       const rotation = rotationSelect ? parseInt(rotationSelect.value, 10) : (group.rotation || 0);
 
       const updateData = {
         layoutMode,
         currentPlaylist: currentPlaylist || null,
-        bottomPlaylist: (layoutMode === "split" && bottomPlaylist) ? bottomPlaylist : null,
+        bottomWebUrl: (layoutMode === "split" && bottomWebUrl) ? bottomWebUrl : null,
         splitRatio: layoutMode === "split" ? splitRatio : 20,
         rotation
       };
@@ -348,7 +348,7 @@
       applyGroupSettings,
       onGroupLayoutChange,
       onGroupPlaylistChange,
-      onGroupBottomPlaylistChange,
+      onGroupBottomWebUrlChange,
       onGroupSplitRatioChange,
       onGroupRotationChange
     };
