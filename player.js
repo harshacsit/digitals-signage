@@ -204,7 +204,7 @@
       db.collection("screens").doc(screenId).update({
         lastSeen: window.firebase.firestore.FieldValue.serverTimestamp()
       }).catch((error) => console.error("Heartbeat failed", error));
-    }, 300000);
+    }, 120000);
   }
 
   function logPreviousItemPlayback() {

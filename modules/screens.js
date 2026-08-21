@@ -77,7 +77,7 @@
 
         pairedCount++;
         const lastSeenMs = getTimestampMs(s.lastSeen);
-        const isOnline = Date.now() - lastSeenMs < 900000;
+        const isOnline = Date.now() - lastSeenMs < 300000;
 
         const previousStatus = appState.screenOnlineStatus[docId];
 
@@ -144,7 +144,7 @@
           if (s.status === "paired") {
             pairedCount++;
             const lastSeenMs = getTimestampMs(s.lastSeen);
-            const isOnline = Date.now() - lastSeenMs < 900000;
+            const isOnline = Date.now() - lastSeenMs < 300000;
             if (isOnline) onlineCount++;
             
             // Track initial status so we don't spam notifications on load
@@ -192,7 +192,7 @@
           }
 
           const lastSeenMs = getTimestampMs(s.lastSeen);
-          const isOnline = Date.now() - lastSeenMs < 900000;
+          const isOnline = Date.now() - lastSeenMs < 300000;
           const previousStatus = appState.screenOnlineStatus[doc.id];
           
           if (previousStatus === false && isOnline) {
