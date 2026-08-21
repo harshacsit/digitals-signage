@@ -1,0 +1,4 @@
+node_modules/
+.env
+my-signage-app-d0b8a-firebase-adminsdk-fbsvc-af88869b6f.json
+serviceAccountKey.json

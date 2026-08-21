@@ -1,0 +1,15 @@
+{
+  "name": "bhimavaram-digitals-monitor",
+  "version": "1.0.0",
+  "description": "Telegram bot monitor for Bhimavaram Digitals screens",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
