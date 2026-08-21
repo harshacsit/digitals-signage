@@ -121,3 +121,13 @@ async function checkScreens() {
 console.log("🚀 Firebase-Telegram Monitor Bot Started!");
 checkScreens(); // Initial check
 setInterval(checkScreens, CHECK_INTERVAL_MS);
+
+// Create a dummy web server so Render.com can host this as a Free "Web Service"
+const http = require('http');
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bhimavaram Digitals Monitor is running!\n');
+}).listen(PORT, () => {
+  console.log(`🌍 Web server listening on port ${PORT} (Required for Render free tier)`);
+});
