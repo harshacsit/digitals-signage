@@ -89,6 +89,7 @@ async function checkScreens() {
           sendTelegramMessage(`🚨 *Offline Alert*\nScreen: *${screenName}*\nStatus: Stopped sending heartbeats.`);
           screenLastAlerted[doc.id] = Date.now();
         } 
+        /*
         else if (previousStatus === false && !isOnline) {
           // Still offline. Check if 2 hours have passed since the last alert
           const lastAlertTime = screenLastAlerted[doc.id] || 0;
@@ -100,6 +101,7 @@ async function checkScreens() {
             screenLastAlerted[doc.id] = Date.now();
           }
         }
+        */
         else if (previousStatus === false && isOnline) {
           // Transition from Offline -> Online
           console.log(`✅ Screen Online: ${screenName}`);
