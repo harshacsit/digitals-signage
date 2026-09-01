@@ -1,0 +1,12 @@
+{
+  "id": "com.bhimavaram.digitals.player",
+  "version": "1.0.0",
+  "vendor": "Bhimavaram Digitals",
+  "type": "web",
+  "main": "index.html",
+  "title": "Signage Player",
+  "icon": "icon.png",
+  "appDescription": "Bhimavaram Digitals Signage Player",
+  "resolution": "1920x1080",
+  "bgColor": "#000000"
+}

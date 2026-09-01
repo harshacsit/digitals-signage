@@ -204,7 +204,7 @@
       db.collection("screens").doc(screenId).update({
         lastSeen: window.firebase.firestore.FieldValue.serverTimestamp()
       }).catch((error) => console.error("Heartbeat failed", error));
-    }, 120000);
+    }, 30000); // Updated to 30s heartbeat to maintain solid online status buffer with dashboard's 2-minute threshold
   }
 
   function logPreviousItemPlayback() {
@@ -270,6 +270,10 @@
 
   screenId = getOrCreateScreenId();
   pairingCodeText.textContent = screenId;
+
+  if (window.AppModules && window.AppModules.createPlayerLiveView) {
+    window.AppModules.createPlayerLiveView(screenId);
+  }
 
   auth.signInAnonymously().catch((error) => console.error("Anonymous sign-in failed", error));
   auth.onAuthStateChanged((user) => {

@@ -1,5 +1,5 @@
 (function () {
-  const { initializeFirebase, switchView, createAuthManager, createScreensModule, createPlaylistsModule, createAnalyticsModule, createPreviewModule, createGroupsModule } = window.AppModules;
+  const { initializeFirebase, switchView, createAuthManager, createScreensModule, createPlaylistsModule, createAnalyticsModule, createPreviewModule, createGroupsModule, createLiveViewModule } = window.AppModules;
 
   const { auth, db } = initializeFirebase();
   const screens = createScreensModule({ db });
@@ -7,6 +7,7 @@
   const analytics = createAnalyticsModule({ db });
   const preview = createPreviewModule({ db });
   const groups = createGroupsModule({ db });
+  const liveview = createLiveViewModule ? createLiveViewModule() : null;
 
   const authManager = createAuthManager(auth, (user) => {
     if (user) {
@@ -43,6 +44,11 @@
   window.loadAnalytics = analytics.loadAnalytics;
   window.populateAnalyticsScreenOptions = analytics.populateAnalyticsScreenOptions;
   window.openPreview = preview.open;
+  if (liveview) {
+    window.openLiveView = liveview.openLiveView;
+    window.closeLiveView = liveview.closeLiveView;
+    window.attachLiveViewVideo = liveview.attachVideoElement;
+  }
 
   window.saveGroup = groups.saveGroup;
   window.editGroup = groups.editGroup;

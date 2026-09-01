@@ -37,63 +37,27 @@ Raspberry Pi.
 | Video storage referenced | Cloudflare R2 (uploaded via a separate tool/repo) |
 
 
-## Architecture
-The Dashboard application follows a modular JavaScript architecture where each feature is implemented as an independent module. Instead of using a framework or bundler, the application loads plain JavaScript files directly in the browser. This approach keeps the project lightweight, easy to understand, and suitable for deployment as a static web application.
+## Workspace Structure
 
-Each module has a single responsibility. Shared application state is maintained in a central module, Firebase handles authentication and database communication, feature modules manage business logic, and the main application file coordinates all modules and initializes the application.
+The project is cleanly separated into modular target directories:
 
-## Architechure flow
-```text
-User
-   │
-   ▼
-Dashboard (HTML/CSS)
-   │
-   ▼
-app.js
-   │
-   ├──────────────┬──────────────┬──────────────┐
-   ▼              ▼              ▼              ▼
-auth.js      screens.js    playlists.js   analytics.js
-   │              │              │              │
-   └──────────────┴──────────────┴──────────────┘
-                  │
-                  ▼
-              state.js
-                  │
-                  ▼
-            firebase.js
-                  │
-                  ▼
-      Firebase Authentication
-                  │
-                  ▼
-         Cloud Firestore Database
-```
-
-
-This module-per-concern split exists specifically so two people can work
-in parallel without merge conflicts: dashboard logic changes live in
-`modules/*.js` + `app.js`; **all UI/styling changes are confined to
-`index.html` and `style.css`**, and must preserve existing `id=` and
-`onclick=` attributes those scripts depend on.
+- **`dashboard/`**: Management Console web app (`index.html`, `app.js`, `style.css`, `sw.js`, `netlify.toml`, `modules/`).
+- **`player/`**: Standalone Web Signage Player web app (`index.html`, `player.js`, `style.css`, `modules/`).
+- **`webos_player/`**: LG webOS Smart TV app (`appinfo.json`, `index.html`, `player.js`, `icon.png`, `modules/`).
+- **`backend/`**: Node.js Firebase screen monitoring server & Telegram alert bot (`index.js`).
+- **`documents/`**: Technical documentation.
 
 ## Getting Started
 
-### Prerequisites
-- A Firebase project (Firestore + Email/Password Auth enabled)
-- A static file server or GitHub Pages for hosting
+### Setup Dashboard
+1. Navigate to `dashboard/`
+2. Copy `config.example.js` → `config.js` and add your Firebase credentials.
+3. Serve `dashboard/` with any static server (e.g. `npx serve dashboard` or Netlify).
 
-### Setup
-1. Clone the repo
-2. Copy `config.example.js` → `config.js` and fill in your Firebase config
-   (`config.js` is gitignored — never commit real keys)
-3. Open `index.html` directly, or serve locally: `python -m http.server`
-4. Create an admin user in Firebase Auth (Email/Password provider)
-
-### Deployment
-Pushed to `main` → served via GitHub Pages at `harshacsit.github.io`. No
-build step required (plain JS/HTML).
+### Setup Web Player
+1. Navigate to `player/`
+2. Copy `config.example.js` → `config.js` and add your Firebase credentials.
+3. Serve `player/` with any static server. The player sends heartbeats every 30 seconds to maintain robust online status in the dashboard.
 
 ## Firestore Data Model
 
