@@ -35,7 +35,7 @@ async function sendTelegramMessage(message) {
     console.log("Would send Telegram message:", message);
     return;
   }
-  
+
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const response = await fetch(url, {
@@ -56,8 +56,8 @@ async function sendTelegramMessage(message) {
 }
 
 // 3. Monitor Screens
-// We consider a screen offline if it misses its heartbeats for over 4 minutes
-const OFFLINE_THRESHOLD_MS = 4 * 60 * 1000; 
+// We consider a screen offline if it misses its heartbeats for over 12 minutes
+const OFFLINE_THRESHOLD_MS = 720000; // 12 min (2.4x the 5-min Android heartbeat) — matches dashboard threshold
 const CHECK_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
 const REMINDER_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -69,18 +69,18 @@ async function checkScreens() {
   try {
     const snapshot = await db.collection("screens").get();
     let onlineCount = 0;
-    
+
     snapshot.forEach(doc => {
       const s = doc.data();
       if (s.status !== "paired") return; // Only monitor actively paired screens
-      
+
       const lastSeen = s.lastSeen ? s.lastSeen.toMillis() : 0;
       const isOnline = (Date.now() - lastSeen) < OFFLINE_THRESHOLD_MS;
       if (isOnline) onlineCount++;
-      
+
       const previousStatus = screenStatus[doc.id];
       const screenName = s.name || doc.id;
-      
+
       // Don't send alerts on the very first run, just populate the initial state
       if (!firstRun) {
         if (previousStatus === true && !isOnline) {
@@ -88,7 +88,7 @@ async function checkScreens() {
           console.log(`🚨 Screen Offline: ${screenName}`);
           sendTelegramMessage(`🚨 *Offline Alert*\nScreen: *${screenName}*\nStatus: Stopped sending heartbeats.`);
           screenLastAlerted[doc.id] = Date.now();
-        } 
+        }
         /*
         else if (previousStatus === false && !isOnline) {
           // Still offline. Check if 2 hours have passed since the last alert
@@ -109,10 +109,10 @@ async function checkScreens() {
           delete screenLastAlerted[doc.id]; // Clear the reminder tracker
         }
       }
-      
+
       screenStatus[doc.id] = isOnline;
     });
-    
+
     firstRun = false;
   } catch (error) {
     console.error("Error fetching screens:", error);

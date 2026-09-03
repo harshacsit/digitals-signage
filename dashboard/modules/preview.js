@@ -58,23 +58,23 @@
       const modal = ensureModal();
       modal.dataset.screenId = screenId;
       modal.style.display = "flex";
-      
+
       const statusText = modal.querySelector("#liveCameraStatus");
       const videoNode = modal.querySelector("#liveCameraVideo");
-      
+
       statusText.textContent = "Connecting to screen...";
       statusText.style.display = "block";
       videoNode.style.display = "none";
-      
+
       if (unsubscribe) unsubscribe();
       unsubscribe = db.collection("screens").doc(screenId).onSnapshot((doc) => {
         if (doc.exists) {
-           const s = doc.data();
-           modal.querySelector("#previewScreenName").textContent = s.name || "(unnamed - " + screenId + ")";
-           const lastSeenMs = getTimestampMs(s.lastSeen);
-           const diff = Date.now() - lastSeenMs;
-           const isOnline = lastSeenMs > 0 && diff >= -30000 && diff < 240000;
-           modal.querySelector("#previewStatus").innerHTML = `
+          const s = doc.data();
+          modal.querySelector("#previewScreenName").textContent = s.name || "(unnamed - " + screenId + ")";
+          const lastSeenMs = getTimestampMs(s.lastSeen);
+          const diff = Date.now() - lastSeenMs;
+          const isOnline = lastSeenMs > 0 && s.appActive !== false && diff >= -30000 && diff < 720000;
+          modal.querySelector("#previewStatus").innerHTML = `
              <span style="display:inline-flex;align-items:center;gap:4px;">
                <span style="width:7px;height:7px;border-radius:50%;background:${isOnline ? "#1fa971" : "#f59e0b"};display:inline-block;"></span>
                ${isOnline ? "Online" : "Offline"}
@@ -82,17 +82,17 @@
            `;
         }
       });
-      
+
       if (window.attachLiveViewVideo && window.openLiveView) {
         window.attachLiveViewVideo(videoNode);
         window.openLiveView(screenId, {
-           onConnect: () => {
-             statusText.style.display = "none";
-             videoNode.style.display = "block";
-           },
-           onTimeout: () => {
-             statusText.textContent = "Live view unavailable for this screen.";
-           }
+          onConnect: () => {
+            statusText.style.display = "none";
+            videoNode.style.display = "block";
+          },
+          onTimeout: () => {
+            statusText.textContent = "Live view unavailable for this screen.";
+          }
         });
       } else {
         statusText.textContent = "Live view module not loaded.";

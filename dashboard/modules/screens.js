@@ -170,7 +170,7 @@
             const lastSeenMs = getTimestampMs(s.lastSeen, doc.id);
             const isOnline = isScreenOnline(lastSeenMs);
             if (isOnline) onlineCount++;
-            
+
             // Track initial status so we don't spam notifications on load
             if (appState.screenOnlineStatus[doc.id] === undefined) {
               appState.screenOnlineStatus[doc.id] = isOnline;
@@ -220,11 +220,11 @@
           const lastSeenMs = getTimestampMs(s.lastSeen, doc.id);
           const isOnline = isScreenOnline(lastSeenMs);
           const previousStatus = appState.screenOnlineStatus[doc.id];
-          
+
           if (previousStatus === false && isOnline) {
             triggerNotification("Screen Online", `Screen "${s.name || doc.id}" is back online.`);
           }
-          
+
           appState.screenOnlineStatus[doc.id] = isOnline;
 
           renderScreenRow(doc.id, s);
@@ -321,11 +321,11 @@
           <td class="cell-layout">${layoutDropdown(docId, s.layoutMode)}</td>
           <td class="cell-playlist">${playlistDropdown(docId, s.currentPlaylist)}</td>
           <td class="cell-bottomurl">${effectiveLayoutMode === "split"
-              ? bottomWebUrlInput(docId, s.bottomWebUrl)
-              : '<span class="text-muted small">—</span>'}</td>
+            ? bottomWebUrlInput(docId, s.bottomWebUrl)
+            : '<span class="text-muted small">—</span>'}</td>
           <td class="cell-splitratio">${effectiveLayoutMode === "split"
-              ? splitRatioDropdown(docId, s.splitRatio)
-              : '<span class="text-muted small">—</span>'}</td>
+            ? splitRatioDropdown(docId, s.splitRatio)
+            : '<span class="text-muted small">—</span>'}</td>
           <td class="cell-rotation">${rotationDropdown(docId, s.rotation)}</td>
           <td class="cell-lastseen">${formatLastSeenTime(lastSeenMs)}</td>
           <td class="text-end cell-actions">
@@ -617,4 +617,4 @@
   };
 
   window.AppModules = AppModules;
-})();
+})();
