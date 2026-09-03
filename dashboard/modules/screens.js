@@ -277,6 +277,7 @@
       const isOnline = isScreenOnline(lastSeenMs);
 
       let tr = appState.screenRows[docId];
+      const isFirstRender = !tr;
       if (!tr) {
         tr = document.createElement("tr");
         appState.screenRows[docId] = tr;
@@ -307,71 +308,91 @@
         tr.classList.remove("row-is-online");
       }
 
-      // Check if user is currently focused or typing in this row
-      const activeEl = document.activeElement;
-      const isUserInteractingInRow = activeEl && tr.contains(activeEl);
-
-      const newHtml = `
-        <td>
-          <span class="badge-status ${isOnline ? "online" : "offline"}">
-            <span class="dot ${isOnline ? "online" : "offline"}"></span>
-            ${isOnline ? "Online" : "Offline"}
-          </span>
-        </td>
-        <td>${s.name || "(unnamed - " + docId + ")"}</td>
-        <td>${layoutDropdown(docId, s.layoutMode)}</td>
-        <td>${playlistDropdown(docId, s.currentPlaylist)}</td>
-        <td>${effectiveLayoutMode === "split"
-            ? bottomWebUrlInput(docId, s.bottomWebUrl)
-            : '<span class="text-muted small">—</span>'}</td>
-        <td>${effectiveLayoutMode === "split"
-            ? splitRatioDropdown(docId, s.splitRatio)
-            : '<span class="text-muted small">—</span>'}</td>
-        <td>${rotationDropdown(docId, s.rotation)}</td>
-        <td>${formatLastSeenTime(lastSeenMs)}</td>
-        <td class="text-end">
-          <div class="d-inline-flex gap-1 align-items-center justify-content-end">
-            <button class="secondary" onclick="openPreview('${docId}')">Preview</button>
-            <button class="secondary primaryPush ${hasPending ? "has-pending" : ""}" ${hasPending ? "" : "disabled"} onclick="pushChanges('${docId}')">Push</button>
-            <button class="secondary danger" onclick="removeScreen('${docId}')">Remove</button>
-          </div>
-        </td>
-      `;
-
-      if (isUserInteractingInRow) {
-        // Soft update status badge and timestamp without tearing down active input focus
-        const statusTd = tr.children[0];
-        if (statusTd) {
-          statusTd.innerHTML = `
+      if (isFirstRender) {
+        // Full build on first render — use named cell classes for surgical updates later
+        tr.innerHTML = `
+          <td class="cell-status">
             <span class="badge-status ${isOnline ? "online" : "offline"}">
               <span class="dot ${isOnline ? "online" : "offline"}"></span>
               ${isOnline ? "Online" : "Offline"}
             </span>
-          `;
-        }
-        const lastSeenTd = tr.children[7];
-        if (lastSeenTd) {
-          lastSeenTd.textContent = formatLastSeenTime(lastSeenMs);
-        }
-      } else {
-        if (tr.innerHTML !== newHtml) {
-          tr.innerHTML = newHtml;
-        }
+          </td>
+          <td class="cell-name">${s.name || "(unnamed - " + docId + ")"}</td>
+          <td class="cell-layout">${layoutDropdown(docId, s.layoutMode)}</td>
+          <td class="cell-playlist">${playlistDropdown(docId, s.currentPlaylist)}</td>
+          <td class="cell-bottomurl">${effectiveLayoutMode === "split"
+              ? bottomWebUrlInput(docId, s.bottomWebUrl)
+              : '<span class="text-muted small">—</span>'}</td>
+          <td class="cell-splitratio">${effectiveLayoutMode === "split"
+              ? splitRatioDropdown(docId, s.splitRatio)
+              : '<span class="text-muted small">—</span>'}</td>
+          <td class="cell-rotation">${rotationDropdown(docId, s.rotation)}</td>
+          <td class="cell-lastseen">${formatLastSeenTime(lastSeenMs)}</td>
+          <td class="text-end cell-actions">
+            <div class="d-inline-flex gap-1 align-items-center justify-content-end">
+              <button class="secondary" onclick="openPreview('${docId}')">Preview</button>
+              <button class="secondary primaryPush ${hasPending ? "has-pending" : ""}" ${hasPending ? "" : "disabled"} onclick="pushChanges('${docId}')">Push</button>
+              <button class="secondary danger" onclick="removeScreen('${docId}')">Remove</button>
+            </div>
+          </td>
+        `;
+        return;
       }
-    }
 
-    function nameDisplay(docId, name) {
-      return `${name || "(unnamed - " + docId + ")"}`;
-    }
+      // --- Surgical updates for subsequent renders (heartbeat ticks) ---
+      // Always update status badge
+      const statusCell = tr.querySelector(".cell-status");
+      if (statusCell) {
+        statusCell.innerHTML = `
+          <span class="badge-status ${isOnline ? "online" : "offline"}">
+            <span class="dot ${isOnline ? "online" : "offline"}"></span>
+            ${isOnline ? "Online" : "Offline"}
+          </span>
+        `;
+      }
 
-    function renameField(docId, currentName) {
-      const safeName = (currentName || "").replace(/"/g, "&quot;");
-      return `<div class="renameField">
-        <input type="text" id="renameInput_${docId}" class="renameInput" value="${safeName}"
-          onkeydown="if(event.key==='Enter'){saveRename('${docId}')} if(event.key==='Escape'){cancelRename('${docId}')}" />
-        <button class="secondary" onclick="saveRename('${docId}')">Save</button>
-        <button class="secondary danger" onclick="cancelRename('${docId}')">Cancel</button>
-      </div>`;
+      // Always update name
+      const nameCell = tr.querySelector(".cell-name");
+      if (nameCell) nameCell.textContent = s.name || "(unnamed - " + docId + ")";
+
+      // Always update last-seen time
+      const lastSeenCell = tr.querySelector(".cell-lastseen");
+      if (lastSeenCell) lastSeenCell.textContent = formatLastSeenTime(lastSeenMs);
+
+      // Always update push button enabled state
+      const pushBtn = tr.querySelector(".primaryPush");
+      if (pushBtn) {
+        pushBtn.disabled = !hasPending;
+        hasPending ? pushBtn.classList.add("has-pending") : pushBtn.classList.remove("has-pending");
+      }
+
+      // Only rebuild dropdown cells when user is NOT currently interacting with this row
+      const activeEl = document.activeElement;
+      const isUserInteractingInRow = activeEl && tr.contains(activeEl);
+      if (!isUserInteractingInRow) {
+        const layoutCell = tr.querySelector(".cell-layout");
+        if (layoutCell) layoutCell.innerHTML = layoutDropdown(docId, s.layoutMode);
+
+        const playlistCell = tr.querySelector(".cell-playlist");
+        if (playlistCell) playlistCell.innerHTML = playlistDropdown(docId, s.currentPlaylist);
+
+        const bottomUrlCell = tr.querySelector(".cell-bottomurl");
+        if (bottomUrlCell) {
+          bottomUrlCell.innerHTML = effectiveLayoutMode === "split"
+            ? bottomWebUrlInput(docId, s.bottomWebUrl)
+            : '<span class="text-muted small">—</span>';
+        }
+
+        const splitRatioCell = tr.querySelector(".cell-splitratio");
+        if (splitRatioCell) {
+          splitRatioCell.innerHTML = effectiveLayoutMode === "split"
+            ? splitRatioDropdown(docId, s.splitRatio)
+            : '<span class="text-muted small">—</span>';
+        }
+
+        const rotationCell = tr.querySelector(".cell-rotation");
+        if (rotationCell) rotationCell.innerHTML = rotationDropdown(docId, s.rotation);
+      }
     }
 
     function startRename(screenId) {
@@ -420,9 +441,6 @@
       </select>`;
     }
 
-    // ===== CHANGED: bottom zone is a URL input, not a playlist picker. =====
-    // The Android player gates the bottom zone on layoutMode == "split" AND
-    // a non-null bottomWebUrl field — it does not read a bottom playlist.
     function bottomWebUrlInput(screenId, currentBottomWebUrl) {
       const pending = appState.pendingChanges[screenId]?.bottomWebUrl;
       const effectiveVal = pending !== undefined ? pending : (currentBottomWebUrl || "");
@@ -460,46 +478,66 @@
 
     function setPendingField(screenId, field, value, committedValue) {
       if (!appState.pendingChanges[screenId]) appState.pendingChanges[screenId] = {};
-      if (value === committedValue) {
-        delete appState.pendingChanges[screenId][field];
-      } else {
-        appState.pendingChanges[screenId][field] = value;
+      // Always store the pending value — never auto-delete even if it matches committed.
+      // The Push button should be enabled as long as the user made a selection.
+      // Only clear after a successful push.
+      appState.pendingChanges[screenId][field] = value;
+
+      // Update just the Push button state without re-rendering the whole row
+      const tr = appState.screenRows[screenId];
+      if (tr) {
+        const pending = appState.pendingChanges[screenId];
+        const hasPending = pending && Object.keys(pending).length > 0;
+        const pushBtn = tr.querySelector(".primaryPush");
+        if (pushBtn) {
+          if (hasPending) {
+            pushBtn.disabled = false;
+            pushBtn.classList.add("has-pending");
+          } else {
+            pushBtn.disabled = true;
+            pushBtn.classList.remove("has-pending");
+          }
+        }
+        if (hasPending) {
+          tr.classList.add("row-has-pending");
+        } else {
+          tr.classList.remove("row-has-pending");
+        }
+
+        // If layout mode changed, we need to refresh the split-specific columns
+        if (field === "layoutMode") {
+          const s = appState.screenDataCache[screenId];
+          if (s) renderScreenRow(screenId, s);
+        }
       }
-      if (Object.keys(appState.pendingChanges[screenId]).length === 0) {
-        delete appState.pendingChanges[screenId];
-      }
-      renderScreenRow(screenId, appState.screenDataCache[screenId]);
     }
 
     function onLayoutModeChange(screenId, value) {
-      const committed = appState.screenDataCache[screenId]?.layoutMode || "single";
-      setPendingField(screenId, "layoutMode", value, committed);
+      setPendingField(screenId, "layoutMode", value, appState.screenDataCache[screenId]?.layoutMode || "single");
     }
 
     function onPlaylistChange(screenId, value) {
-      const committed = appState.screenDataCache[screenId]?.currentPlaylist || "";
-      setPendingField(screenId, "playlist", value, committed);
+      setPendingField(screenId, "playlist", value, appState.screenDataCache[screenId]?.currentPlaylist || "");
     }
 
-    // ===== CHANGED: replaces onBottomPlaylistChange =====
     function onBottomWebUrlChange(screenId, value) {
-      const committed = appState.screenDataCache[screenId]?.bottomWebUrl || "";
-      setPendingField(screenId, "bottomWebUrl", value.trim(), committed);
+      setPendingField(screenId, "bottomWebUrl", value.trim(), appState.screenDataCache[screenId]?.bottomWebUrl || "");
     }
 
     function onSplitRatioChange(screenId, value) {
-      const committed = appState.screenDataCache[screenId]?.splitRatio || DEFAULT_SPLIT_RATIO;
-      setPendingField(screenId, "splitRatio", parseInt(value, 10), committed);
+      setPendingField(screenId, "splitRatio", parseInt(value, 10), appState.screenDataCache[screenId]?.splitRatio || DEFAULT_SPLIT_RATIO);
     }
 
     function onRotationChange(screenId, value) {
-      const committed = appState.screenDataCache[screenId]?.rotation || 0;
-      setPendingField(screenId, "rotation", parseInt(value, 10), committed);
+      setPendingField(screenId, "rotation", parseInt(value, 10), appState.screenDataCache[screenId]?.rotation || 0);
     }
 
     function pushChanges(screenId) {
       const pending = appState.pendingChanges[screenId];
-      if (!pending) return;
+      if (!pending || Object.keys(pending).length === 0) {
+        if (AppModules.showToast) AppModules.showToast("No changes to push.", "info");
+        return;
+      }
 
       const update = {};
       if (pending.layoutMode !== undefined) update.layoutMode = pending.layoutMode;
@@ -508,16 +546,30 @@
       if (pending.splitRatio !== undefined) update.splitRatio = pending.splitRatio;
       if (pending.rotation !== undefined) update.rotation = pending.rotation;
 
+      const s = appState.screenDataCache[screenId];
+      const screenName = s?.name || screenId;
+
       db.collection("screens").doc(screenId).update(update)
         .then(() => {
           delete appState.pendingChanges[screenId];
+          if (AppModules.showToast) {
+            AppModules.showToast(`Changes pushed to "${screenName}" successfully!`, "success");
+          }
           renderScreenRow(screenId, appState.screenDataCache[screenId]);
         })
-        .catch((err) => alert(`Failed to push changes: ${err.message}`));
+        .catch((err) => {
+          if (AppModules.showToast) {
+            AppModules.showToast(`Push failed: ${err.message}`, "error");
+          } else {
+            alert(`Failed to push changes: ${err.message}`);
+          }
+        });
     }
 
     function removeScreen(screenId) {
-      if (!confirm("Remove this screen permanently from Firebase?")) return;
+      const s = appState.screenDataCache[screenId];
+      const name = s?.name || screenId;
+      if (!confirm(`Remove "${name}" permanently from Firebase?`)) return;
       delete appState.pendingChanges[screenId];
       delete appState.screenOnlineStatus[screenId];
       if (appState.screenRows[screenId]) {
@@ -528,7 +580,7 @@
 
       db.collection("screens").doc(screenId).delete()
         .then(() => {
-          console.log("Screen deleted from firebase successfully:", screenId);
+          if (AppModules.showToast) AppModules.showToast(`Screen "${name}" removed.`, "info");
           db.collection("groups").get().then((groupSnap) => {
             groupSnap.forEach((gDoc) => {
               const gData = gDoc.data();
@@ -539,7 +591,10 @@
             });
           }).catch(err => console.warn("Failed fetching groups for screen cleanup", err));
         })
-        .catch((err) => alert(`Failed to remove screen: ${err.message}`));
+        .catch((err) => {
+          if (AppModules.showToast) AppModules.showToast(`Remove failed: ${err.message}`, "error");
+          else alert(`Failed to remove screen: ${err.message}`);
+        });
     }
 
     return {
@@ -562,4 +617,4 @@
   };
 
   window.AppModules = AppModules;
-})();
+})();
