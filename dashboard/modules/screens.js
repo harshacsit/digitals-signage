@@ -13,36 +13,42 @@
   const SPLIT_RATIO_OPTIONS = [10, 20, 30, 40];
   const DEFAULT_SPLIT_RATIO = 20;
 
-  const ONLINE_THRESHOLD_MS = 180000; // 3 minutes threshold to prevent false offline status
+  const ONLINE_THRESHOLD_MS = 300000; // 5 minutes threshold to prevent false offline status
 
   function isScreenOnline(lastSeenMs) {
     if (!lastSeenMs || lastSeenMs <= 0) return false;
     const diff = Date.now() - lastSeenMs;
-    // Allow up to 5 minutes clock skew ahead (-300000ms) or up to threshold past
+    // Allow up to 5 minutes clock skew ahead (-300000ms) or up to threshold past (300000ms)
     return diff >= -300000 && diff < ONLINE_THRESHOLD_MS;
   }
 
   function getTimestampMs(ts, docId) {
-    if (!ts) {
-      if (docId && appState.screenDataCache[docId] && appState.screenDataCache[docId]._lastSeenMs) {
-        return appState.screenDataCache[docId]._lastSeenMs;
-      }
-      return 0;
-    }
     let ms = 0;
-    if (typeof ts.toMillis === "function") ms = ts.toMillis();
-    else if (typeof ts.toDate === "function") ms = ts.toDate().getTime();
-    else if (typeof ts === "number") ms = ts;
-    else if (ts.seconds !== undefined) ms = ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1000000);
-    else if (ts instanceof Date) ms = ts.getTime();
-    else if (typeof ts === "string") {
-      const parsed = Date.parse(ts);
-      ms = isNaN(parsed) ? 0 : parsed;
+    if (ts) {
+      if (typeof ts.toMillis === "function") ms = ts.toMillis();
+      else if (typeof ts.toDate === "function") ms = ts.toDate().getTime();
+      else if (typeof ts === "number") ms = ts;
+      else if (ts.seconds !== undefined && ts.seconds !== null) ms = ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1000000);
+      else if (ts instanceof Date) ms = ts.getTime();
+      else if (typeof ts === "string") {
+        const parsed = Date.parse(ts);
+        ms = isNaN(parsed) ? 0 : parsed;
+      }
     }
-    if (ms > 0 && docId && appState.screenDataCache[docId]) {
-      appState.screenDataCache[docId]._lastSeenMs = ms;
+
+    if (ms > 0) {
+      if (docId && appState.screenDataCache[docId]) {
+        appState.screenDataCache[docId]._lastSeenMs = ms;
+      }
+      return ms;
     }
-    return ms;
+
+    // Fallback: If ts is null or pending server timestamp (ms === 0), use cached _lastSeenMs
+    if (docId && appState.screenDataCache[docId] && appState.screenDataCache[docId]._lastSeenMs) {
+      return appState.screenDataCache[docId]._lastSeenMs;
+    }
+
+    return 0;
   }
 
   function formatLastSeenTime(ms) {
@@ -285,11 +291,6 @@
         tr.style.display = "";
       }
 
-      // Preserve focus/in-progress typing in the bottom-URL text input across
-      // re-renders (e.g. triggered by a heartbeat-driven snapshot update).
-      const activeBottomUrlInput = tr.querySelector("input.bottomWebUrlInput");
-      const isEditingBottomUrl = activeBottomUrlInput && document.activeElement === activeBottomUrlInput;
-
       const pending = appState.pendingChanges[docId] || {};
       const effectiveLayoutMode = pending.layoutMode !== undefined ? pending.layoutMode : (s.layoutMode || "single");
       const hasPending = Object.keys(pending).length > 0;
@@ -306,7 +307,11 @@
         tr.classList.remove("row-is-online");
       }
 
-      tr.innerHTML = `
+      // Check if user is currently focused or typing in this row
+      const activeEl = document.activeElement;
+      const isUserInteractingInRow = activeEl && tr.contains(activeEl);
+
+      const newHtml = `
         <td>
           <span class="badge-status ${isOnline ? "online" : "offline"}">
             <span class="dot ${isOnline ? "online" : "offline"}"></span>
@@ -317,7 +322,7 @@
         <td>${layoutDropdown(docId, s.layoutMode)}</td>
         <td>${playlistDropdown(docId, s.currentPlaylist)}</td>
         <td>${effectiveLayoutMode === "split"
-            ? (isEditingBottomUrl ? activeBottomUrlInput.outerHTML : bottomWebUrlInput(docId, s.bottomWebUrl))
+            ? bottomWebUrlInput(docId, s.bottomWebUrl)
             : '<span class="text-muted small">—</span>'}</td>
         <td>${effectiveLayoutMode === "split"
             ? splitRatioDropdown(docId, s.splitRatio)
@@ -333,9 +338,25 @@
         </td>
       `;
 
-      if (isEditingBottomUrl) {
-        const restored = tr.querySelector("input.bottomWebUrlInput");
-        if (restored) restored.focus();
+      if (isUserInteractingInRow) {
+        // Soft update status badge and timestamp without tearing down active input focus
+        const statusTd = tr.children[0];
+        if (statusTd) {
+          statusTd.innerHTML = `
+            <span class="badge-status ${isOnline ? "online" : "offline"}">
+              <span class="dot ${isOnline ? "online" : "offline"}"></span>
+              ${isOnline ? "Online" : "Offline"}
+            </span>
+          `;
+        }
+        const lastSeenTd = tr.children[7];
+        if (lastSeenTd) {
+          lastSeenTd.textContent = formatLastSeenTime(lastSeenMs);
+        }
+      } else {
+        if (tr.innerHTML !== newHtml) {
+          tr.innerHTML = newHtml;
+        }
       }
     }
 
