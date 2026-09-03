@@ -56,9 +56,9 @@ async function sendTelegramMessage(message) {
 }
 
 // 3. Monitor Screens
-// We consider a screen offline if it misses its heartbeats for over 2 minutes
-const OFFLINE_THRESHOLD_MS = 2 * 60 * 1000; 
-const CHECK_INTERVAL_MS = 15 * 1000; // Check every 15 seconds
+// We consider a screen offline if it misses its heartbeats for over 4 minutes
+const OFFLINE_THRESHOLD_MS = 4 * 60 * 1000; 
+const CHECK_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
 const REMINDER_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 let screenStatus = {}; // { screenId: isOnline }

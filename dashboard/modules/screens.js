@@ -13,12 +13,12 @@
   const SPLIT_RATIO_OPTIONS = [10, 20, 30, 40];
   const DEFAULT_SPLIT_RATIO = 20;
 
-  const ONLINE_THRESHOLD_MS = 120000; // 2 minutes strict threshold
+  const ONLINE_THRESHOLD_MS = 240000; // 4 minutes threshold optimized for up to 20 screens on Firebase free tier
 
   function isScreenOnline(lastSeenMs) {
     if (!lastSeenMs || lastSeenMs <= 0) return false;
     const diff = Date.now() - lastSeenMs;
-    // Strict window: timestamp must be between -30s (future clock skew) and +2 minutes (120s)
+    // Window: timestamp must be between -30s (future clock skew) and +4 minutes (240s)
     return diff >= -30000 && diff < ONLINE_THRESHOLD_MS;
   }
 
@@ -156,7 +156,7 @@
         if ("Notification" in window && Notification.permission === "default") {
           Notification.requestPermission();
         }
-        offlineCheckInterval = setInterval(checkScreenStatuses, 15000);
+        offlineCheckInterval = setInterval(checkScreenStatuses, 30000);
       }
 
       db.collection("screens").onSnapshot((snapshot) => {
