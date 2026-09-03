@@ -13,13 +13,13 @@
   const SPLIT_RATIO_OPTIONS = [10, 20, 30, 40];
   const DEFAULT_SPLIT_RATIO = 20;
 
-  const ONLINE_THRESHOLD_MS = 300000; // 5 minutes threshold to prevent false offline status
+  const ONLINE_THRESHOLD_MS = 120000; // 2 minutes strict threshold
 
   function isScreenOnline(lastSeenMs) {
     if (!lastSeenMs || lastSeenMs <= 0) return false;
     const diff = Date.now() - lastSeenMs;
-    // Allow up to 5 minutes clock skew ahead (-300000ms) or up to threshold past (300000ms)
-    return diff >= -300000 && diff < ONLINE_THRESHOLD_MS;
+    // Strict window: timestamp must be between -30s (future clock skew) and +2 minutes (120s)
+    return diff >= -30000 && diff < ONLINE_THRESHOLD_MS;
   }
 
   function getTimestampMs(ts, docId) {
@@ -156,7 +156,7 @@
         if ("Notification" in window && Notification.permission === "default") {
           Notification.requestPermission();
         }
-        offlineCheckInterval = setInterval(checkScreenStatuses, 60000);
+        offlineCheckInterval = setInterval(checkScreenStatuses, 15000);
       }
 
       db.collection("screens").onSnapshot((snapshot) => {
