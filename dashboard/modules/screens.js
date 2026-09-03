@@ -13,18 +13,36 @@
   const SPLIT_RATIO_OPTIONS = [10, 20, 30, 40];
   const DEFAULT_SPLIT_RATIO = 20;
 
-  function getTimestampMs(ts) {
-    if (!ts) return 0;
-    if (typeof ts.toMillis === "function") return ts.toMillis();
-    if (typeof ts.toDate === "function") return ts.toDate().getTime();
-    if (typeof ts === "number") return ts;
-    if (ts.seconds) return ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1000000);
-    if (ts instanceof Date) return ts.getTime();
-    if (typeof ts === "string") {
-      const parsed = Date.parse(ts);
-      return isNaN(parsed) ? 0 : parsed;
+  const ONLINE_THRESHOLD_MS = 180000; // 3 minutes threshold to prevent false offline status
+
+  function isScreenOnline(lastSeenMs) {
+    if (!lastSeenMs || lastSeenMs <= 0) return false;
+    const diff = Date.now() - lastSeenMs;
+    // Allow up to 5 minutes clock skew ahead (-300000ms) or up to threshold past
+    return diff >= -300000 && diff < ONLINE_THRESHOLD_MS;
+  }
+
+  function getTimestampMs(ts, docId) {
+    if (!ts) {
+      if (docId && appState.screenDataCache[docId] && appState.screenDataCache[docId]._lastSeenMs) {
+        return appState.screenDataCache[docId]._lastSeenMs;
+      }
+      return 0;
     }
-    return 0;
+    let ms = 0;
+    if (typeof ts.toMillis === "function") ms = ts.toMillis();
+    else if (typeof ts.toDate === "function") ms = ts.toDate().getTime();
+    else if (typeof ts === "number") ms = ts;
+    else if (ts.seconds !== undefined) ms = ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1000000);
+    else if (ts instanceof Date) ms = ts.getTime();
+    else if (typeof ts === "string") {
+      const parsed = Date.parse(ts);
+      ms = isNaN(parsed) ? 0 : parsed;
+    }
+    if (ms > 0 && docId && appState.screenDataCache[docId]) {
+      appState.screenDataCache[docId]._lastSeenMs = ms;
+    }
+    return ms;
   }
 
   function formatLastSeenTime(ms) {
@@ -76,8 +94,8 @@
         if (s.status !== "paired") return;
 
         pairedCount++;
-        const lastSeenMs = getTimestampMs(s.lastSeen);
-        const isOnline = Date.now() - lastSeenMs < 120000;
+        const lastSeenMs = getTimestampMs(s.lastSeen, docId);
+        const isOnline = isScreenOnline(lastSeenMs);
 
         const previousStatus = appState.screenOnlineStatus[docId];
 
@@ -143,8 +161,8 @@
           const s = doc.data();
           if (s.status === "paired") {
             pairedCount++;
-            const lastSeenMs = getTimestampMs(s.lastSeen);
-            const isOnline = Date.now() - lastSeenMs < 120000;
+            const lastSeenMs = getTimestampMs(s.lastSeen, doc.id);
+            const isOnline = isScreenOnline(lastSeenMs);
             if (isOnline) onlineCount++;
             
             // Track initial status so we don't spam notifications on load
@@ -180,19 +198,21 @@
           }
 
           const s = doc.data();
-          appState.screenDataCache[doc.id] = s;
-
           if (s.status !== "paired") {
             if (appState.screenRows[doc.id]) {
               appState.screenRows[doc.id].remove();
               delete appState.screenRows[doc.id];
             }
+            delete appState.screenDataCache[doc.id];
+            delete appState.pendingChanges[doc.id];
             delete appState.screenOnlineStatus[doc.id];
             return;
           }
 
-          const lastSeenMs = getTimestampMs(s.lastSeen);
-          const isOnline = Date.now() - lastSeenMs < 120000;
+          appState.screenDataCache[doc.id] = s;
+
+          const lastSeenMs = getTimestampMs(s.lastSeen, doc.id);
+          const isOnline = isScreenOnline(lastSeenMs);
           const previousStatus = appState.screenOnlineStatus[doc.id];
           
           if (previousStatus === false && isOnline) {
@@ -233,8 +253,8 @@
         const tr = appState.screenRows[docId];
         if (!s || !tr) return;
 
-        const lastSeenMs = getTimestampMs(s.lastSeen);
-        const isOnline = Date.now() - lastSeenMs < 120000;
+        const lastSeenMs = getTimestampMs(s.lastSeen, docId);
+        const isOnline = isScreenOnline(lastSeenMs);
 
         if (appState.screenStatusFilter === "online" && !isOnline) {
           tr.style.display = "none";
@@ -247,8 +267,8 @@
     }
 
     function renderScreenRow(docId, s) {
-      const lastSeenMs = getTimestampMs(s.lastSeen);
-      const isOnline = Date.now() - lastSeenMs < 120000;
+      const lastSeenMs = getTimestampMs(s.lastSeen, docId);
+      const isOnline = isScreenOnline(lastSeenMs);
 
       let tr = appState.screenRows[docId];
       if (!tr) {
@@ -478,8 +498,26 @@
     function removeScreen(screenId) {
       if (!confirm("Remove this screen permanently from Firebase?")) return;
       delete appState.pendingChanges[screenId];
+      delete appState.screenOnlineStatus[screenId];
+      if (appState.screenRows[screenId]) {
+        appState.screenRows[screenId].remove();
+        delete appState.screenRows[screenId];
+      }
+      delete appState.screenDataCache[screenId];
+
       db.collection("screens").doc(screenId).delete()
-        .then(() => console.log("Screen deleted from firebase successfully:", screenId))
+        .then(() => {
+          console.log("Screen deleted from firebase successfully:", screenId);
+          db.collection("groups").get().then((groupSnap) => {
+            groupSnap.forEach((gDoc) => {
+              const gData = gDoc.data();
+              if (Array.isArray(gData.screenIds) && gData.screenIds.includes(screenId)) {
+                const updatedScreenIds = gData.screenIds.filter(id => id !== screenId);
+                gDoc.ref.update({ screenIds: updatedScreenIds }).catch(err => console.warn("Failed updating group screenIds", err));
+              }
+            });
+          }).catch(err => console.warn("Failed fetching groups for screen cleanup", err));
+        })
         .catch((err) => alert(`Failed to remove screen: ${err.message}`));
     }
 

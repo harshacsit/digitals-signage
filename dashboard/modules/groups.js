@@ -42,8 +42,9 @@
         const screen = appState.screenDataCache[id];
         const screenName = screen.name || `Screen (${id})`;
         const lastSeen = screen.lastSeen;
-        const lastSeenMs = lastSeen ? (lastSeen.toMillis ? lastSeen.toMillis() : (lastSeen.seconds ? lastSeen.seconds * 1000 : 0)) : 0;
-        const isOnline = Date.now() - lastSeenMs < 120000;
+        const lastSeenMs = lastSeen ? (lastSeen.toMillis ? lastSeen.toMillis() : (lastSeen.seconds ? lastSeen.seconds * 1000 : 0)) : (screen._lastSeenMs || 0);
+        const diff = Date.now() - lastSeenMs;
+        const isOnline = lastSeenMs > 0 && (diff >= -300000 && diff < 180000);
         const isChecked = selectedIds.includes(id);
 
         return `
@@ -167,13 +168,14 @@
       }
 
       container.innerHTML = appState.groupsCache.map((g) => {
-        const memberIds = g.screenIds || [];
+        const memberIds = (g.screenIds || []).filter((id) => appState.screenDataCache[id]?.status === "paired");
         const memberScreens = memberIds.map((id) => {
           const s = appState.screenDataCache[id];
           const name = s ? (s.name || id) : id;
           const lastSeen = s?.lastSeen;
-          const lastSeenMs = lastSeen ? (lastSeen.toMillis ? lastSeen.toMillis() : (lastSeen.seconds ? lastSeen.seconds * 1000 : 0)) : 0;
-          const isOnline = Date.now() - lastSeenMs < 120000;
+          const lastSeenMs = lastSeen ? (lastSeen.toMillis ? lastSeen.toMillis() : (lastSeen.seconds ? lastSeen.seconds * 1000 : 0)) : (s?._lastSeenMs || 0);
+          const diff = Date.now() - lastSeenMs;
+          const isOnline = lastSeenMs > 0 && (diff >= -300000 && diff < 180000);
           return `<span class="badge ${isOnline ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-light text-muted border'} px-2 py-1 me-1 mb-1" title="${id}">${name}</span>`;
         }).join("");
 

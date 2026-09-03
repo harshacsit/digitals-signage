@@ -56,8 +56,8 @@ async function sendTelegramMessage(message) {
 }
 
 // 3. Monitor Screens
-// We consider a screen offline if it misses its 2-minute heartbeat by a healthy margin (5 mins total)
-const OFFLINE_THRESHOLD_MS = 2 * 60 * 1000; 
+// We consider a screen offline if it misses its 15s heartbeats for over 3 minutes
+const OFFLINE_THRESHOLD_MS = 3 * 60 * 1000; 
 const CHECK_INTERVAL_MS = 60 * 1000; // Check every 1 minute
 const REMINDER_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 hours
 

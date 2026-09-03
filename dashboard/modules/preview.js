@@ -72,7 +72,8 @@
            const s = doc.data();
            modal.querySelector("#previewScreenName").textContent = s.name || "(unnamed - " + screenId + ")";
            const lastSeenMs = getTimestampMs(s.lastSeen);
-           const isOnline = Date.now() - lastSeenMs < 120000;
+           const diff = Date.now() - lastSeenMs;
+           const isOnline = lastSeenMs > 0 && diff >= -300000 && diff < 180000;
            modal.querySelector("#previewStatus").innerHTML = `
              <span style="display:inline-flex;align-items:center;gap:4px;">
                <span style="width:7px;height:7px;border-radius:50%;background:${isOnline ? "#1fa971" : "#f59e0b"};display:inline-block;"></span>
