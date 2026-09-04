@@ -13,12 +13,12 @@
   const SPLIT_RATIO_OPTIONS = [10, 20, 30, 40];
   const DEFAULT_SPLIT_RATIO = 20;
 
-  const ONLINE_THRESHOLD_MS = 240000; // 4 minutes threshold optimized for up to 20 screens on Firebase free tier
+  const ONLINE_THRESHOLD_MS = 720000; // 12 min (2.4× the 5-min Android heartbeat) — matches backend and all other dashboard modules
 
   function isScreenOnline(lastSeenMs) {
     if (!lastSeenMs || lastSeenMs <= 0) return false;
     const diff = Date.now() - lastSeenMs;
-    // Window: timestamp must be between -30s (future clock skew) and +4 minutes (240s)
+    // Window: timestamp must be between -30s (future clock skew) and +12 minutes (720s)
     return diff >= -30000 && diff < ONLINE_THRESHOLD_MS;
   }
 
@@ -37,13 +37,17 @@
     }
 
     if (ms > 0) {
+      // Update cache with the real timestamp value
       if (docId && appState.screenDataCache[docId]) {
         appState.screenDataCache[docId]._lastSeenMs = ms;
       }
       return ms;
     }
 
-    // Fallback: If ts is null or pending server timestamp (ms === 0), use cached _lastSeenMs
+    // Fallback: If ts is null or a pending server timestamp (ms === 0), use the
+    // previously cached _lastSeenMs so we don't briefly flicker offline.
+    // NOTE: We read _lastSeenMs from the OLD cache entry BEFORE screenDataCache[docId]
+    // is overwritten with the new snapshot data that still has lastSeen === null.
     if (docId && appState.screenDataCache[docId] && appState.screenDataCache[docId]._lastSeenMs) {
       return appState.screenDataCache[docId]._lastSeenMs;
     }
@@ -104,7 +108,8 @@
         const isOnline = isScreenOnline(lastSeenMs);
 
         const previousStatus = appState.screenOnlineStatus[docId];
-
+        const statusChanged = previousStatus !== isOnline;
+ 
         if (previousStatus === true && !isOnline) {
           triggerNotification("Screen Offline", `Screen "${s.name || docId}" has gone offline.`);
         } else if (previousStatus === false && isOnline) {
@@ -115,8 +120,17 @@
 
         if (isOnline) onlineCount++;
 
-        // Re-render to update the UI status indicator dynamically
-        renderScreenRow(docId, s);
+        if (statusChanged) {
+          // Full re-render only when online status actually changed
+          renderScreenRow(docId, s);
+        } else {
+          // Only update the last-seen timestamp cell to avoid restarting the CSS blink animation
+          const tr = appState.screenRows[docId];
+          if (tr) {
+            const lastSeenCell = tr.querySelector(".cell-lastseen");
+            if (lastSeenCell) lastSeenCell.textContent = formatLastSeenTime(lastSeenMs);
+          }
+        }
       });
 
       const countEl = document.getElementById("screenCount");
@@ -215,9 +229,22 @@
             return;
           }
 
+          // Read cached _lastSeenMs BEFORE overwriting the cache entry, so
+          // getTimestampMs() can fall back to it if the new snapshot carries a
+          // pending server timestamp (lastSeen === null on the first write event).
+          const prevCachedMs = appState.screenDataCache[doc.id]?._lastSeenMs;
           appState.screenDataCache[doc.id] = s;
+          // Restore the cached timestamp so the fallback inside getTimestampMs works.
+          if (prevCachedMs && (!s.lastSeen || (typeof s.lastSeen === 'object' && s.lastSeen.seconds === undefined))) {
+            appState.screenDataCache[doc.id]._lastSeenMs = prevCachedMs;
+          }
 
           const lastSeenMs = getTimestampMs(s.lastSeen, doc.id);
+
+          // If lastSeenMs is still 0 after the fallback, this is a pending-timestamp
+          // write event — skip the status update entirely to avoid a false offline flicker.
+          if (lastSeenMs === 0) return;
+
           const isOnline = isScreenOnline(lastSeenMs);
           const previousStatus = appState.screenOnlineStatus[doc.id];
 

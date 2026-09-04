@@ -11,10 +11,46 @@
     let peerConnection = null;
     let videoEl = null;
     let statsTimer = null;
-
     const servers = {
       iceServers: [
-        { urls: "stun:stun.l.google.com:19302" }
+
+        // Direct connection
+        {
+          urls: "stun:stun.l.google.com:19302"
+        },
+
+        // Metered STUN
+        {
+          urls: "stun:stun.relay.metered.ca:80"
+        },
+
+        // Metered TURN UDP
+        {
+          urls: "turn:asia.relay.metered.ca:80",
+          username: "1307800c8e891a537885caae",
+          credential: "daYVpLYAGgbd4yYw"
+        },
+
+        // Metered TURN TCP
+        {
+          urls: "turn:asia.relay.metered.ca:80?transport=tcp",
+          username: "1307800c8e891a537885caae",
+          credential: "daYVpLYAGgbd4yYw"
+        },
+
+        // Metered TURN port 443
+        {
+          urls: "turn:asia.relay.metered.ca:443",
+          username: "1307800c8e891a537885caae",
+          credential: "daYVpLYAGgbd4yYw"
+        },
+
+        // Metered TURN TLS
+        {
+          urls: "turns:asia.relay.metered.ca:443?transport=tcp",
+          username: "1307800c8e891a537885caae",
+          credential: "daYVpLYAGgbd4yYw"
+        }
       ]
     };
 
@@ -106,7 +142,7 @@
       peerConnection.onicegatheringstatechange = () => {
         console.log("WEBRTC ICE GATHERING:", peerConnection.iceGatheringState);
       };
-      
+
       const viewerId = "viewer_" + Math.random().toString(36).substring(2, 10);
 
       let pendingCandidates = [];
@@ -116,61 +152,61 @@
       // peerConnection.addTransceiver('audio', { direction: 'recvonly' }); // Uncomment if audio is needed
 
       peerConnection.ontrack = async (event) => {
-  console.log("========== WEBRTC TRACK RECEIVED ==========");
-  console.log("TRACK KIND:", event.track.kind);
-  console.log("TRACK READY STATE:", event.track.readyState);
-  console.log("TRACK ENABLED:", event.track.enabled);
-  console.log("TRACK MUTED:", event.track.muted);
-  console.log("TRACK STREAMS:", event.streams);
+        console.log("========== WEBRTC TRACK RECEIVED ==========");
+        console.log("TRACK KIND:", event.track.kind);
+        console.log("TRACK READY STATE:", event.track.readyState);
+        console.log("TRACK ENABLED:", event.track.enabled);
+        console.log("TRACK MUTED:", event.track.muted);
+        console.log("TRACK STREAMS:", event.streams);
 
-  if (!videoEl) {
-    console.error("VIDEO ELEMENT DOES NOT EXIST");
-    return;
-  }
+        if (!videoEl) {
+          console.error("VIDEO ELEMENT DOES NOT EXIST");
+          return;
+        }
 
-  // Do NOT depend on event.streams[0].
-  // Some WebRTC implementations deliver an empty streams array.
-  const stream = new MediaStream([event.track]);
+        // Do NOT depend on event.streams[0].
+        // Some WebRTC implementations deliver an empty streams array.
+        const stream = new MediaStream([event.track]);
 
-  videoEl.srcObject = stream;
-  videoEl.style.display = "block";
+        videoEl.srcObject = stream;
+        videoEl.style.display = "block";
 
-  console.log("VIDEO STREAM ATTACHED:", stream);
-  console.log("VIDEO ELEMENT:", videoEl);
+        console.log("VIDEO STREAM ATTACHED:", stream);
+        console.log("VIDEO ELEMENT:", videoEl);
 
-  videoEl.onloadedmetadata = () => {
-    console.log(
-      "VIDEO METADATA LOADED:",
-      videoEl.videoWidth,
-      "x",
-      videoEl.videoHeight
-    );
-  };
+        videoEl.onloadedmetadata = () => {
+          console.log(
+            "VIDEO METADATA LOADED:",
+            videoEl.videoWidth,
+            "x",
+            videoEl.videoHeight
+          );
+        };
 
-  videoEl.onplaying = () => {
-    console.log("VIDEO PLAYING");
-  };
+        videoEl.onplaying = () => {
+          console.log("VIDEO PLAYING");
+        };
 
-  videoEl.onwaiting = () => {
-    console.log("VIDEO WAITING");
-  };
+        videoEl.onwaiting = () => {
+          console.log("VIDEO WAITING");
+        };
 
-  videoEl.onerror = (e) => {
-    console.error("VIDEO ERROR:", e);
-  };
+        videoEl.onerror = (e) => {
+          console.error("VIDEO ERROR:", e);
+        };
 
-  try {
-    await videoEl.play();
-    console.log("VIDEO PLAY() SUCCESS");
-  } catch (e) {
-    console.error("VIDEO PLAY() FAILED:", e);
-  }
+        try {
+          await videoEl.play();
+          console.log("VIDEO PLAY() SUCCESS");
+        } catch (e) {
+          console.error("VIDEO PLAY() FAILED:", e);
+        }
 
-  if (callbacks.onConnect) {
-    callbacks.onConnect();
-  }
-};
-      
+        if (callbacks.onConnect) {
+          callbacks.onConnect();
+        }
+      };
+
 
       peerConnection.onicecandidate = (event) => {
         if (event.candidate && channel) {
@@ -193,16 +229,16 @@
           console.log("Received offer:", payload);
           let offer = payload.payload.sdp || payload.payload.offer;
           if (typeof offer === 'string') {
-            try { 
-              offer = JSON.parse(offer); 
+            try {
+              offer = JSON.parse(offer);
             } catch (e) {
               offer = { type: 'offer', sdp: offer };
             }
           }
-          
+
           await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
           isRemoteDescriptionSet = true;
-          
+
           // Add any queued ICE candidates
           for (const c of pendingCandidates) {
             await peerConnection.addIceCandidate(new RTCIceCandidate(c));
@@ -211,7 +247,7 @@
 
           const answer = await peerConnection.createAnswer();
           await peerConnection.setLocalDescription(answer);
-          
+
           channel.send({
             type: "broadcast",
             event: "answer",
@@ -226,10 +262,10 @@
       channel.on("broadcast", { event: "ice-candidate" }, async (payload) => {
         try {
           if (payload.payload.viewerId && payload.payload.viewerId !== viewerId && payload.payload.target !== viewerId) return;
-          
+
           let candidate = payload.payload.candidate;
           if (typeof candidate === 'string') {
-            try { candidate = JSON.parse(candidate); } catch (e) {}
+            try { candidate = JSON.parse(candidate); } catch (e) { }
           }
           if (candidate) {
             if (isRemoteDescriptionSet) {
@@ -250,7 +286,7 @@
             event: "viewer-ready",
             payload: { viewerId }
           });
-          
+
           setTimeout(() => {
             if (!isRemoteDescriptionSet && callbacks.onTimeout) {
               callbacks.onTimeout();
