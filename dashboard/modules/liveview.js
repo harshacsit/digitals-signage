@@ -11,9 +11,13 @@
     let peerConnection = null;
     let videoEl = null;
     let statsTimer = null;
-    const TURN_WORKER_URL = "https://turn-credentials-worker.yourname.workers.dev";
+    const TURN_WORKER_URL = (window.AppConfig && window.AppConfig.turnWorkerUrl) || "";
 
     async function getIceServers() {
+      if (!TURN_WORKER_URL) {
+        console.warn("TURN worker URL not configured — using STUN only.");
+        return [{ urls: "stun:stun.l.google.com:19302" }];
+      }
       try {
         const resp = await fetch(TURN_WORKER_URL);
         if (!resp.ok) throw new Error(`Worker returned ${resp.status}`);
