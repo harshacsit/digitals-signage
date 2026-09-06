@@ -521,4 +521,69 @@ button.primaryPush:not(:disabled):hover {
 }
 .cursor-pointer { cursor: pointer; }
 
+/* ===================== R2 FILE UPLOAD UI ===================== */
+
+/* Wrapper that holds the URL input + Upload button side by side */
+.r2-url-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 240px;
+}
+.r2-url-group .itemUrl {
+  flex: 1;
+  min-width: 140px;
+}
+
+/* The "📁 Upload File" button — styled differently from the red btn-remove */
+.item-row .btn-upload-file {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.item-row .btn-upload-file:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.item-row .btn-upload-file:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Progress bar row */
+.r2-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+.r2-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.r2-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.2s ease, background 0.3s ease;
+}
+.r2-progress-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 36px;
+  text-align: right;
+}
 

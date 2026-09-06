@@ -11,48 +11,21 @@
     let peerConnection = null;
     let videoEl = null;
     let statsTimer = null;
-    const servers = {
-      iceServers: [
+    const TURN_WORKER_URL = "https://turn-credentials-worker.yourname.workers.dev";
 
-        // Direct connection
-        {
-          urls: "stun:stun.l.google.com:19302"
-        },
-
-        // Metered STUN
-        {
-          urls: "stun:stun.relay.metered.ca:80"
-        },
-
-        // Metered TURN UDP
-        {
-          urls: "turn:asia.relay.metered.ca:80",
-          username: "1307800c8e891a537885caae",
-          credential: "daYVpLYAGgbd4yYw"
-        },
-
-        // Metered TURN TCP
-        {
-          urls: "turn:asia.relay.metered.ca:80?transport=tcp",
-          username: "1307800c8e891a537885caae",
-          credential: "daYVpLYAGgbd4yYw"
-        },
-
-        // Metered TURN port 443
-        {
-          urls: "turn:asia.relay.metered.ca:443",
-          username: "1307800c8e891a537885caae",
-          credential: "daYVpLYAGgbd4yYw"
-        },
-
-        // Metered TURN TLS
-        {
-          urls: "turns:asia.relay.metered.ca:443?transport=tcp",
-          username: "1307800c8e891a537885caae",
-          credential: "daYVpLYAGgbd4yYw"
-        }
-      ]
-    };
+    async function getIceServers() {
+      try {
+        const resp = await fetch(TURN_WORKER_URL);
+        if (!resp.ok) throw new Error(`Worker returned ${resp.status}`);
+        const data = await resp.json();
+        // Cloudflare already returns this as a ready-to-use array —
+        // no reshaping needed, just pass it straight to RTCPeerConnection.
+        return data.iceServers;
+      } catch (e) {
+        console.error("Failed to fetch TURN credentials, falling back to STUN only:", e);
+        return [{ urls: "stun:stun.l.google.com:19302" }];
+      }
+    }
 
     function attachVideoElement(el) {
       videoEl = el;
@@ -66,8 +39,9 @@
 
       closeLiveView(); // ensure clean state
 
+      const iceServers = await getIceServers();
       channel = supabase.channel(`signal-${screenId}`);
-      peerConnection = new RTCPeerConnection(servers);
+      peerConnection = new RTCPeerConnection({ iceServers });
 
       statsTimer = setInterval(async () => {
         if (!peerConnection) return;

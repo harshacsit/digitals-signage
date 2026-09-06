@@ -67,13 +67,35 @@
       const container = document.getElementById("playlistItems");
       const row = document.createElement("div");
       row.className = "item-row";
+
+      // Unique ID so the hidden file input and its button can be linked per-row
+      const uid = "r2_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+
       row.innerHTML = `
         <select class="itemType">
           <option value="image" ${data.type !== "video" && data.type !== "web" ? "selected" : ""}>📷 Image</option>
           <option value="video" ${data.type === "video" ? "selected" : ""}>🎬 Video</option>
           <option value="web" ${data.type === "web" ? "selected" : ""}>🌐 Web Page / YouTube</option>
         </select>
-        <input class="itemUrl" placeholder="Media URL (e.g. https://... or YouTube link)" value="${data.url || ""}" />
+
+        <!-- URL input + Upload button side-by-side -->
+        <div class="r2-url-group">
+          <input class="itemUrl" placeholder="Paste a URL  —OR—  pick a file →" value="${data.url || ""}" />
+          <button class="btn-upload-file" type="button" title="Pick a file from your computer and upload it to cloud storage">
+            📁 Upload File
+          </button>
+          <!-- Hidden file picker (accepts images & videos from any drive) -->
+          <input type="file" id="${uid}" class="r2-file-input" accept="video/*,image/*" style="display:none" />
+        </div>
+
+        <!-- Upload progress bar (hidden until an upload starts) -->
+        <div class="r2-progress-wrap" style="display:none; width:100%; margin-top:4px;">
+          <div class="r2-progress-bar">
+            <div class="r2-progress-fill" style="width:0%"></div>
+          </div>
+          <span class="r2-progress-label">0%</span>
+        </div>
+
         <div class="d-flex align-items-center gap-1">
           <input class="itemDuration" type="number" placeholder="Sec" value="${data.durationSeconds || 8}" style="width:75px" />
           <span class="small text-muted">sec</span>
@@ -99,6 +121,77 @@
       `;
 
       container.appendChild(row);
+
+      // ── Wire up the upload button for this row ──────────────────────────────
+      const fileInput   = row.querySelector("#" + uid);
+      const uploadBtn   = row.querySelector(".btn-upload-file");
+      const urlInput    = row.querySelector(".itemUrl");
+      const typeSelect  = row.querySelector(".itemType");
+      const progressWrap = row.querySelector(".r2-progress-wrap");
+      const progressFill = row.querySelector(".r2-progress-fill");
+      const progressLbl  = row.querySelector(".r2-progress-label");
+
+      // Clicking the styled button triggers the hidden file input
+      uploadBtn.addEventListener("click", function () {
+        fileInput.click();
+      });
+
+      // When a file is chosen, start the upload
+      fileInput.addEventListener("change", function () {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+
+        // Auto-select type based on MIME
+        if (file.type.startsWith("video/")) {
+          typeSelect.value = "video";
+        } else if (file.type.startsWith("image/")) {
+          typeSelect.value = "image";
+        }
+
+        // Show progress bar, disable controls during upload
+        progressWrap.style.display = "flex";
+        progressFill.style.width = "0%";
+        progressLbl.textContent = "0%";
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = "⏳ Uploading…";
+        urlInput.disabled = true;
+
+        if (!window.R2Upload) {
+          if (AppModules.showToast) AppModules.showToast("Upload helper not loaded. Refresh the page.", "error");
+          resetControls();
+          return;
+        }
+
+        window.R2Upload.upload(file, function (pct) {
+          progressFill.style.width = pct + "%";
+          progressLbl.textContent = pct + "%";
+        })
+        .then(function (result) {
+          urlInput.value = result.url;
+          progressFill.style.width = "100%";
+          progressLbl.textContent = "Done!";
+          progressFill.style.background = "var(--green)";
+          if (AppModules.showToast) AppModules.showToast("File uploaded! URL filled in.", "success");
+          setTimeout(function () { progressWrap.style.display = "none"; }, 2000);
+          resetControls();
+        })
+        .catch(function (err) {
+          if (AppModules.showToast) AppModules.showToast("Upload failed: " + err.message, "error");
+          else alert("Upload failed: " + err.message);
+          progressWrap.style.display = "none";
+          resetControls();
+        })
+        .finally(function () {
+          // Reset so the same file can be re-selected if needed
+          fileInput.value = "";
+        });
+
+        function resetControls() {
+          uploadBtn.disabled = false;
+          uploadBtn.textContent = "📁 Upload File";
+          urlInput.disabled = false;
+        }
+      });
     }
 
     function savePlaylist() {
