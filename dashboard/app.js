@@ -1,5 +1,5 @@
 (function () {
-  const { initializeFirebase, switchView, createAuthManager, createScreensModule, createPlaylistsModule, createAnalyticsModule, createPreviewModule, createGroupsModule, createLiveViewModule } = window.AppModules;
+  const { initializeFirebase, switchView: _switchView, createAuthManager, createScreensModule, createPlaylistsModule, createAnalyticsModule, createPreviewModule, createGroupsModule, createLiveViewModule, createLiveWallModule } = window.AppModules;
 
   const { auth, db } = initializeFirebase();
   const screens = createScreensModule({ db });
@@ -8,6 +8,20 @@
   const preview = createPreviewModule({ db });
   const groups = createGroupsModule({ db });
   const liveview = createLiveViewModule ? createLiveViewModule() : null;
+  const liveWall = createLiveWallModule ? createLiveWallModule({ db }) : null;
+
+  // Wrap switchView so we mount/unmount Live Wall automatically
+  let _currentView = '';
+  function switchView(viewId, btn) {
+    if (_currentView === 'liveWallView' && viewId !== 'liveWallView' && liveWall) {
+      liveWall.unmount();
+    }
+    _switchView(viewId, btn);
+    _currentView = viewId;
+    if (viewId === 'liveWallView' && liveWall) {
+      liveWall.mount();
+    }
+  }
 
   const authManager = createAuthManager(auth, (user) => {
     if (user) {

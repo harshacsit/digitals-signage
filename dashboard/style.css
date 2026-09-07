@@ -586,4 +586,145 @@ button.primaryPush:not(:disabled):hover {
   min-width: 36px;
   text-align: right;
 }
+
+/* ===================== LIVE WALL ===================== */
+#liveWallGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+/* Individual tile */
+.lw-tile {
+  background: #0f172a;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  border: 1.5px solid #1e293b;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.lw-tile:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  border-color: #334155;
+}
+
+/* Video wrapper — maintains 16:9 */
+.lw-video-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.lw-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+
+/* Overlay — shown while connecting or offline */
+.lw-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity 0.4s ease;
+}
+.lw-overlay.lw-overlay-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.lw-offline-overlay {
+  background: rgba(15, 23, 42, 0.88);
+  color: #64748b;
+}
+
+/* Spinner */
+.lw-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid #334155;
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: lw-spin 0.75s linear infinite;
+}
+@keyframes lw-spin { to { transform: rotate(360deg); } }
+
+/* Tile footer — name + status badge */
+.lw-tile-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid #1e293b;
+}
+
+.lw-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.lw-dot-online  { background: #34d399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.6); }
+.lw-dot-offline { background: #f59e0b; }
+
+.lw-tile-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lw-tile-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.lw-tile-status.online  { background: rgba(52, 211, 153, 0.15); color: #34d399; }
+.lw-tile-status.offline { background: rgba(245, 158, 11, 0.15);  color: #fbbf24; }
+
+/* Empty state */
+.lw-empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 72px 24px;
+  color: var(--muted);
+}
+.lw-empty-icon {
+  font-size: 52px;
+  margin-bottom: 14px;
+  opacity: 0.45;
+}
+.lw-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+.lw-empty-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Responsive: single column on small screens */
+@media (max-width: 600px) {
+  #liveWallGrid {
+    grid-template-columns: 1fr;
+  }
+}
 
