@@ -18,6 +18,9 @@
         if (typeof window.renderGroupsTable === "function") {
           window.renderGroupsTable();
         }
+        if (typeof window.populateMassLaunchPlaylists === "function") {
+          window.populateMassLaunchPlaylists();
+        }
       });
     }
 

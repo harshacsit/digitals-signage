@@ -6,6 +6,7 @@
     if (window.supabase && window.supabaseConfig && window.supabaseConfig.url !== "YOUR_SUPABASE_URL") {
       supabase = window.supabase.createClient(window.supabaseConfig.url, window.supabaseConfig.anonKey);
     }
+    
 
     let channel = null;
     let peerConnection = null;

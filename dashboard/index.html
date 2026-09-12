@@ -17,12 +17,8 @@
   <div id="loginBox">
     <div class="login-card shadow-sm">
       <div class="text-center mb-4">
-        <div class="brand-mark mx-auto mb-2">
-          <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-            <rect x="1" y="3" width="24" height="15" rx="2.5" stroke="white" stroke-width="2" />
-            <path d="M9 21h8" stroke="white" stroke-width="2" stroke-linecap="round" />
-            <path d="M13 18v3" stroke="white" stroke-width="2" stroke-linecap="round" />
-          </svg>
+        <div class="brand-mark mx-auto mb-2 overflow-hidden bg-white p-1 border shadow-sm" style="width:auto; height:60px; border-radius:10px;">
+          <img src="logo.png" alt="Bhimavaram Digitals Logo" style="height:100%; width:auto; object-fit:contain;" />
         </div>
         <h1 class="h4 fw-bold text-primary-brand mb-0">Bhimavaram Digitals</h1>
         <div class="text-muted small text-uppercase brand-sub">Management Pro</div>
@@ -61,12 +57,8 @@
       <aside class="sidebar d-flex flex-column">
         <div class="px-3 pt-3 pb-4">
           <div class="d-flex align-items-center gap-2 mb-1">
-            <div class="brand-mark-sm">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="1" y="2" width="14" height="9" rx="1.5" stroke="white" stroke-width="1.5" />
-                <path d="M5 13h6" stroke="white" stroke-width="1.5" stroke-linecap="round" />
-                <path d="M8 11v2" stroke="white" stroke-width="1.5" stroke-linecap="round" />
-              </svg>
+            <div class="brand-mark-sm bg-white p-0.5 border shadow-sm overflow-hidden" style="width:auto; height:32px; border-radius:6px;">
+              <img src="logo.png" alt="Bhimavaram Digitals Logo" style="height:100%; width:auto; object-fit:contain;" />
             </div>
             <span class="fw-bold text-primary-brand">Bhimavaram Digitals</span>
           </div>
@@ -93,6 +85,10 @@
           <button class="navBtn" id="liveWallNavBtn" onclick="switchView('liveWallView', this)">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><rect x="1" y="2" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 13h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 11v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="6.5" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
             Live View
+          </button>
+          <button class="navBtn" id="massLaunchNavBtn" onclick="switchView('massLaunchView', this)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 10.5v-7z" stroke="currentColor" stroke-width="1.4"/><path d="M6 14h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 12v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><polygon points="6,5.5 11,8.5 6,11.5" fill="currentColor"/></svg>
+            Mass Launch
           </button>
         </nav>
 
@@ -318,6 +314,143 @@
           <div id="liveWallWarning" style="display:none;align-items:center;gap:10px;background:#fffbeb;border:1px solid #f59e0b;color:#92400e;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;"></div>
 
           <div id="liveWallGrid"></div>
+        </section>
+
+        <!-- MASS LAUNCH & BROADCAST PAGE -->
+        <section id="massLaunchView" class="view">
+          <div class="pageHeader d-flex justify-content-between align-items-center flex-wrap gap-3 pb-3 border-bottom mb-4">
+            <div class="d-flex align-items-center gap-3">
+              <div class="mass-launch-header-logo border shadow-sm rounded-3 p-1.5 bg-white d-flex align-items-center justify-content-center" style="height: 60px; width: auto;">
+                <img src="logo.png" alt="Bhimavaram Digitals Logo" style="height: 100%; width: auto; object-fit: contain;" />
+              </div>
+              <div>
+                <div class="d-flex align-items-center gap-2">
+                  <h1 class="h3 fw-bold text-dark mb-0">Mass Launch & Broadcast</h1>
+                  <span class="badge bg-primary text-white px-2.5 py-1 rounded-pill small fw-semibold">Pro Controller</span>
+                </div>
+                <div class="text-muted small mt-1">Assign playlist & rotation to all connected TVs simultaneously.</div>
+              </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+              <div class="target-stat-pill d-flex align-items-center gap-2 px-3 py-2 rounded-pill bg-white border shadow-sm">
+                <span class="pulse-dot"></span>
+                <span class="text-secondary small fw-medium">Active Targets:</span>
+                <span id="massLaunchTargetCount" class="fw-bold text-primary fs-6">0 TVs</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- LAUNCH CONTROL CARD -->
+          <div class="card mass-launch-card shadow-sm mb-4">
+            <div class="card-body p-4">
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="icon-badge">🚀</span>
+                <h2 class="h5 fw-bold mb-0">Broadcast Configuration</h2>
+              </div>
+
+              <div class="row g-4 align-items-end">
+                <div class="col-lg-4 col-md-6">
+                  <label class="form-label fw-semibold text-secondary d-flex justify-content-between mb-2">
+                    <span>1. Select Playlist</span>
+                    <span id="massLaunchPlaylistBadge" class="text-muted small fw-normal">0 items</span>
+                  </label>
+                  <select id="massLaunchPlaylist" class="form-select form-select-lg border-primary-subtle fs-6" onchange="onMassLaunchPlaylistChange()">
+                    <option value="">— Select Playlist —</option>
+                  </select>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                  <label class="form-label fw-semibold text-secondary mb-2">2. Screen Rotation</label>
+                  <select id="massLaunchRotation" class="form-select form-select-lg border-primary-subtle fs-6">
+                    <option value="0">0° (Standard Landscape)</option>
+                    <option value="90">90° (Portrait Right)</option>
+                    <option value="180">180° (Inverted Landscape)</option>
+                    <option value="270">270° (Portrait Left)</option>
+                  </select>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                  <label class="form-label fw-semibold text-secondary mb-2">3. Target TVs Scope</label>
+                  <select id="massLaunchTargetScope" class="form-select form-select-lg border-primary-subtle fs-6" onchange="updateMassLaunchTargetCount()">
+                    <option value="all">All Paired TVs</option>
+                    <option value="online">Online TVs Only</option>
+                  </select>
+                </div>
+
+                <div class="col-lg-2 col-md-6">
+                  <button id="massLaunchBtn" class="btn btn-launch-all w-100 py-3 d-flex align-items-center justify-content-center gap-2 fw-bold text-uppercase" onclick="launchToAllScreens()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71 1.1-1.6 1.4-2.5L4.5 16.5z"/>
+                      <path d="M12 15l-3-3 7.5-7.5c.78-.78 2.05-.78 2.83 0l.67.67c.78.78.78 2.05 0 2.83L12 15z"/>
+                    </svg>
+                    <span>LAUNCH TO ALL</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ADVANCED LAYOUT OPTIONS CARD -->
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center gap-2">
+                <span class="icon-badge">📐</span>
+                <h2 class="h6 fw-bold mb-0">Advanced Layout Options (Optional)</h2>
+              </div>
+              <div id="massLaunchStatusText" class="small fw-semibold text-success" style="display:none;"></div>
+            </div>
+            <div class="card-body p-4">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label small fw-semibold text-secondary">Layout Mode</label>
+                  <select id="massLaunchLayoutMode" class="form-select" onchange="onMassLaunchLayoutModeChange()">
+                    <option value="single">Single (Full Screen Playlist)</option>
+                    <option value="split">Split Layout (Top Playlist + Bottom Web URL)</option>
+                  </select>
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label small fw-semibold text-secondary">Bottom Web URL (If Split)</label>
+                  <input type="text" id="massLaunchBottomUrl" class="form-control bg-secondary-subtle" placeholder="Disabled in Single layout" disabled />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-semibold text-secondary">Split Ratio %</label>
+                  <select id="massLaunchSplitRatio" class="form-select bg-secondary-subtle" disabled>
+                    <option value="20">20% Bottom Strip</option>
+                    <option value="10">10% Bottom Strip</option>
+                    <option value="30">30% Bottom Strip</option>
+                    <option value="40">40% Bottom Strip</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TARGET TV OVERVIEW TABLE CARD -->
+          <div class="card p-0 overflow-hidden shadow-sm">
+            <div class="card-table-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="icon-badge">📺</span>
+                <h2 class="mb-0 h6 fw-bold">Target TVs Overview</h2>
+              </div>
+              <div class="text-muted small">Real-time status of TVs that will receive the broadcast</div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>TV Name</th>
+                    <th>Current Playlist</th>
+                    <th>Current Rotation</th>
+                    <th>Current Layout</th>
+                    <th>Last Seen</th>
+                  </tr>
+                </thead>
+                <tbody id="massLaunchTvOverviewBody"></tbody>
+              </table>
+            </div>
+          </div>
         </section>
 
       </main>

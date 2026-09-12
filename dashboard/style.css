@@ -727,4 +727,149 @@ button.primaryPush:not(:disabled):hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===================== SCREEN RENAME PENCIL BUTTON ===================== */
+.screen-name-wrapper {
+  position: relative;
+}
+
+.btn-rename-pencil {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.btn-rename-pencil:hover {
+  color: var(--accent);
+  background: var(--panel-2);
+  opacity: 1;
+}
+
+.screen-name-rename-box {
+  min-width: 180px;
+}
+
+.screen-name-rename-box .rename-input {
+  min-width: 110px;
+  max-width: 180px;
+  font-size: 13px;
+  padding: 3px 8px;
+  border-color: var(--accent);
+}
+
+/* ===================== MASS LAUNCH MODULE ===================== */
+.mass-launch-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 24px;
+  box-shadow: 0 4px 20px -2px rgba(26, 86, 219, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.mass-launch-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1a56db 0%, #2563eb 50%, #06b6d4 100%);
+}
+
+.mass-launch-logo-wrapper {
+  height: 64px;
+  min-width: 52px;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 3px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+}
+
+.mass-launch-logo-img {
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+  border-radius: 7px;
+}
+
+.mass-launch-logo-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 9px;
+  background: #1a56db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.target-stat-pill {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--green);
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 0 rgba(31, 169, 113, 0.7);
+  animation: pulse-ring 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes pulse-ring {
+  to {
+    box-shadow: 0 0 0 8px rgba(31, 169, 113, 0);
+  }
+}
+
+.btn-launch-all {
+  background: linear-gradient(135deg, #1a56db 0%, #1d4ed8 100%);
+  color: #ffffff !important;
+  border: none;
+  border-radius: 8px;
+  font-size: 13.5px;
+  letter-spacing: 0.03em;
+  box-shadow: 0 4px 14px rgba(26, 86, 219, 0.32);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-launch-all:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  box-shadow: 0 6px 20px rgba(26, 86, 219, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-launch-all:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(26, 86, 219, 0.3);
+}
+
+.btn-launch-all:disabled {
+  background: #94a3b8 !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+  transform: none !important;
+  opacity: 0.8;
+}
+
+
 
