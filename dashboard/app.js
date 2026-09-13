@@ -52,11 +52,13 @@
   window.removeScreen = screens.removeScreen;
   window.filterScreensByStatus = screens.filterScreensByStatus;
   window.populateMassLaunchPlaylists = screens.populateMassLaunchPlaylists;
-  window.onMassLaunchPlaylistChange = screens.onMassLaunchPlaylistChange;
   window.updateMassLaunchTargetCount = screens.updateMassLaunchTargetCount;
-  window.toggleMassLaunchAdvanced = screens.toggleMassLaunchAdvanced;
-  window.onMassLaunchLayoutModeChange = screens.onMassLaunchLayoutModeChange;
   window.renderMassLaunchTvOverviewTable = screens.renderMassLaunchTvOverviewTable;
+  window.onMassLaunchScreenPlaylistChange = screens.onMassLaunchScreenPlaylistChange;
+  window.onMassLaunchScreenRotationChange = screens.onMassLaunchScreenRotationChange;
+  window.saveMassLaunchConfig = screens.saveMassLaunchConfig;
+  window.closeMassLaunchModal = screens.closeMassLaunchModal;
+  window.executeMassLaunch = screens.executeMassLaunch;
   window.launchToAllScreens = screens.launchToAllScreens;
   window.editPlaylist = playlists.editPlaylist;
   window.deletePlaylist = playlists.deletePlaylist;

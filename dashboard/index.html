@@ -318,137 +318,94 @@
 
         <!-- MASS LAUNCH & BROADCAST PAGE -->
         <section id="massLaunchView" class="view">
+          <!-- PAGE HEADER WITH LAUNCH ALL BUTTON -->
           <div class="pageHeader d-flex justify-content-between align-items-center flex-wrap gap-3 pb-3 border-bottom mb-4">
-            <div class="d-flex align-items-center gap-3">
-              <div class="mass-launch-header-logo border shadow-sm rounded-3 p-1.5 bg-white d-flex align-items-center justify-content-center" style="height: 60px; width: auto;">
-                <img src="logo.png" alt="Bhimavaram Digitals Logo" style="height: 100%; width: auto; object-fit: contain;" />
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <h1 class="h3 fw-bold text-dark mb-0">Mass Launch & Broadcast</h1>
+                <span id="massLaunchTargetCount" class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-bold">0 TVs</span>
               </div>
-              <div>
-                <div class="d-flex align-items-center gap-2">
-                  <h1 class="h3 fw-bold text-dark mb-0">Mass Launch & Broadcast</h1>
-                  <span class="badge bg-primary text-white px-2.5 py-1 rounded-pill small fw-semibold">Pro Controller</span>
-                </div>
-                <div class="text-muted small mt-1">Assign playlist & rotation to all connected TVs simultaneously.</div>
-              </div>
+              <div class="text-muted small mt-1">Assign playlist and rotation for each TV below, then click Launch All.</div>
             </div>
 
-            <div class="d-flex align-items-center gap-3">
-              <div class="target-stat-pill d-flex align-items-center gap-2 px-3 py-2 rounded-pill bg-white border shadow-sm">
-                <span class="pulse-dot"></span>
-                <span class="text-secondary small fw-medium">Active Targets:</span>
-                <span id="massLaunchTargetCount" class="fw-bold text-primary fs-6">0 TVs</span>
-              </div>
-            </div>
-          </div>
+            <div class="d-flex align-items-center gap-2">
+              <button id="massSaveBtn" class="btn btn-outline-primary px-3 py-2.5 d-flex align-items-center gap-2 fw-semibold" onclick="saveMassLaunchConfig()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                <span>Save Config</span>
+              </button>
 
-          <!-- LAUNCH CONTROL CARD -->
-          <div class="card mass-launch-card shadow-sm mb-4">
-            <div class="card-body p-4">
-              <div class="d-flex align-items-center gap-2 mb-3">
-                <span class="icon-badge">🚀</span>
-                <h2 class="h5 fw-bold mb-0">Broadcast Configuration</h2>
-              </div>
-
-              <div class="row g-4 align-items-end">
-                <div class="col-lg-4 col-md-6">
-                  <label class="form-label fw-semibold text-secondary d-flex justify-content-between mb-2">
-                    <span>1. Select Playlist</span>
-                    <span id="massLaunchPlaylistBadge" class="text-muted small fw-normal">0 items</span>
-                  </label>
-                  <select id="massLaunchPlaylist" class="form-select form-select-lg border-primary-subtle fs-6" onchange="onMassLaunchPlaylistChange()">
-                    <option value="">— Select Playlist —</option>
-                  </select>
-                </div>
-
-                <div class="col-lg-3 col-md-6">
-                  <label class="form-label fw-semibold text-secondary mb-2">2. Screen Rotation</label>
-                  <select id="massLaunchRotation" class="form-select form-select-lg border-primary-subtle fs-6">
-                    <option value="0">0° (Standard Landscape)</option>
-                    <option value="90">90° (Portrait Right)</option>
-                    <option value="180">180° (Inverted Landscape)</option>
-                    <option value="270">270° (Portrait Left)</option>
-                  </select>
-                </div>
-
-                <div class="col-lg-3 col-md-6">
-                  <label class="form-label fw-semibold text-secondary mb-2">3. Target TVs Scope</label>
-                  <select id="massLaunchTargetScope" class="form-select form-select-lg border-primary-subtle fs-6" onchange="updateMassLaunchTargetCount()">
-                    <option value="all">All Paired TVs</option>
-                    <option value="online">Online TVs Only</option>
-                  </select>
-                </div>
-
-                <div class="col-lg-2 col-md-6">
-                  <button id="massLaunchBtn" class="btn btn-launch-all w-100 py-3 d-flex align-items-center justify-content-center gap-2 fw-bold text-uppercase" onclick="launchToAllScreens()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71 1.1-1.6 1.4-2.5L4.5 16.5z"/>
-                      <path d="M12 15l-3-3 7.5-7.5c.78-.78 2.05-.78 2.83 0l.67.67c.78.78.78 2.05 0 2.83L12 15z"/>
-                    </svg>
-                    <span>LAUNCH TO ALL</span>
-                  </button>
-                </div>
-              </div>
+              <button id="massLaunchBtn" class="btn btn-launch-all px-4 py-2.5 d-flex align-items-center gap-2 fw-bold text-uppercase fs-6" onclick="launchToAllScreens()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71 1.1-1.6 1.4-2.5L4.5 16.5z"/>
+                  <path d="M12 15l-3-3 7.5-7.5c.78-.78 2.05-.78 2.83 0l.67.67c.78.78.78 2.05 0 2.83L12 15z"/>
+                </svg>
+                <span>LAUNCH ALL</span>
+              </button>
             </div>
           </div>
 
-          <!-- ADVANCED LAYOUT OPTIONS CARD -->
-          <div class="card shadow-sm mb-4">
+          <!-- TARGET TV LIST TABLE CARD -->
+          <div class="card p-0 overflow-hidden shadow-sm border mb-4">
             <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
-              <div class="d-flex align-items-center gap-2">
-                <span class="icon-badge">📐</span>
-                <h2 class="h6 fw-bold mb-0">Advanced Layout Options (Optional)</h2>
-              </div>
+              <h2 class="mb-0 h6 fw-bold text-dark">Paired TVs Setup</h2>
               <div id="massLaunchStatusText" class="small fw-semibold text-success" style="display:none;"></div>
-            </div>
-            <div class="card-body p-4">
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <label class="form-label small fw-semibold text-secondary">Layout Mode</label>
-                  <select id="massLaunchLayoutMode" class="form-select" onchange="onMassLaunchLayoutModeChange()">
-                    <option value="single">Single (Full Screen Playlist)</option>
-                    <option value="split">Split Layout (Top Playlist + Bottom Web URL)</option>
-                  </select>
-                </div>
-                <div class="col-md-5">
-                  <label class="form-label small fw-semibold text-secondary">Bottom Web URL (If Split)</label>
-                  <input type="text" id="massLaunchBottomUrl" class="form-control bg-secondary-subtle" placeholder="Disabled in Single layout" disabled />
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label small fw-semibold text-secondary">Split Ratio %</label>
-                  <select id="massLaunchSplitRatio" class="form-select bg-secondary-subtle" disabled>
-                    <option value="20">20% Bottom Strip</option>
-                    <option value="10">10% Bottom Strip</option>
-                    <option value="30">30% Bottom Strip</option>
-                    <option value="40">40% Bottom Strip</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- TARGET TV OVERVIEW TABLE CARD -->
-          <div class="card p-0 overflow-hidden shadow-sm">
-            <div class="card-table-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-              <div class="d-flex align-items-center gap-2">
-                <span class="icon-badge">📺</span>
-                <h2 class="mb-0 h6 fw-bold">Target TVs Overview</h2>
-              </div>
-              <div class="text-muted small">Real-time status of TVs that will receive the broadcast</div>
             </div>
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0">
-                <thead>
+                <thead class="table-light">
                   <tr>
-                    <th>Status</th>
-                    <th>TV Name</th>
-                    <th>Current Playlist</th>
-                    <th>Current Rotation</th>
-                    <th>Current Layout</th>
-                    <th>Last Seen</th>
+                    <th style="width: 140px;">Status</th>
+                    <th style="min-width: 180px;">TV Name</th>
+                    <th style="min-width: 260px;">Assigned Playlist</th>
+                    <th style="min-width: 200px;">Screen Rotation</th>
                   </tr>
                 </thead>
                 <tbody id="massLaunchTvOverviewBody"></tbody>
               </table>
+            </div>
+          </div>
+
+          <!-- SECURE MASS LAUNCH CONFIRMATION MODAL -->
+          <div id="massLaunchConfirmModal" class="modal-overlay" style="display: none;">
+            <div class="modal-card">
+              <div class="d-flex justify-content-between align-items-center pb-3 border-bottom mb-3">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="fs-4">🚀</span>
+                  <h3 class="h5 fw-bold mb-0 text-dark">Confirm Secure Mass Launch</h3>
+                </div>
+                <button type="button" class="btn-close" onclick="closeMassLaunchModal()"></button>
+              </div>
+              <div class="modal-body py-2">
+                <p class="text-secondary small mb-3">
+                  Are you sure you want to broadcast assigned configurations to <strong id="modalScreenCount">0 TVs</strong>?
+                </p>
+                <div class="table-responsive border rounded mb-3" style="max-height: 200px;">
+                  <table class="table table-sm table-striped align-middle mb-0" style="font-size: 13px;">
+                    <thead class="table-light">
+                      <tr>
+                        <th>TV Name</th>
+                        <th>Playlist</th>
+                        <th>Rotation</th>
+                      </tr>
+                    </thead>
+                    <tbody id="modalConfirmBody"></tbody>
+                  </table>
+                </div>
+                <div class="alert alert-warning d-flex align-items-center gap-2 mb-0 py-2 fs-7">
+                  <span>🔒</span>
+                  <span>This action will securely update active playback on target TVs instantly.</span>
+                </div>
+              </div>
+              <div class="modal-footer pt-3 mt-3 border-top d-flex justify-content-end gap-2">
+                <button class="btn btn-light border px-3" onclick="closeMassLaunchModal()">Cancel</button>
+                <button id="modalConfirmLaunchBtn" class="btn btn-launch-all px-4 py-2 fw-bold text-uppercase" onclick="executeMassLaunch()">
+                  🚀 Confirm & Broadcast Now
+                </button>
+              </div>
             </div>
           </div>
         </section>

@@ -700,79 +700,67 @@
     }
 
     // ===== Mass Launch & Broadcast Module =====
+    const massLaunchStagingCache = {};
 
     function populateMassLaunchPlaylists() {
-      const select = document.getElementById("massLaunchPlaylist");
-      if (!select) return;
-      const currentVal = select.value;
-
-      const playlists = appState.playlistsCache || [];
-      let html = `<option value="">— Select Playlist —</option>`;
-      playlists.forEach((p) => {
-        const itemCount = (p.items || []).length;
-        html += `<option value="${p.id}" ${p.id === currentVal ? "selected" : ""}>${p.name} (${itemCount} items)</option>`;
-      });
-      select.innerHTML = html;
-      onMassLaunchPlaylistChange();
-    }
-
-    function onMassLaunchPlaylistChange() {
-      const select = document.getElementById("massLaunchPlaylist");
-      const badge = document.getElementById("massLaunchPlaylistBadge");
-      if (!select || !badge) return;
-
-      const playlistId = select.value;
-      if (!playlistId) {
-        badge.textContent = "0 items";
-        return;
-      }
-      const p = (appState.playlistsCache || []).find((entry) => entry.id === playlistId);
-      const itemCount = p && p.items ? p.items.length : 0;
-      badge.textContent = `${itemCount} item${itemCount === 1 ? "" : "s"}`;
+      renderMassLaunchTvOverviewTable();
     }
 
     function updateMassLaunchTargetCount() {
       const targetCountEl = document.getElementById("massLaunchTargetCount");
-      const scopeSelect = document.getElementById("massLaunchTargetScope");
-      const scope = scopeSelect ? scopeSelect.value : "all";
-
       const pairedScreenIds = Object.keys(appState.screenDataCache).filter(
         (id) => appState.screenDataCache[id]?.status === "paired"
       );
 
-      let targetCount = 0;
-      if (scope === "online") {
-        targetCount = pairedScreenIds.filter((id) => {
-          const s = appState.screenDataCache[id];
-          const lastSeenMs = getTimestampMs(s.lastSeen, id);
-          return isScreenOnline(lastSeenMs);
-        }).length;
-      } else {
-        targetCount = pairedScreenIds.length;
-      }
-
       if (targetCountEl) {
-        targetCountEl.textContent = `${targetCount} TV${targetCount === 1 ? "" : "s"}`;
+        targetCountEl.textContent = `${pairedScreenIds.length} TV${pairedScreenIds.length === 1 ? "" : "s"}`;
       }
 
       renderMassLaunchTvOverviewTable();
     }
 
+    function onMassLaunchScreenPlaylistChange(screenId, val) {
+      if (!massLaunchStagingCache[screenId]) {
+        const s = appState.screenDataCache[screenId] || {};
+        massLaunchStagingCache[screenId] = {
+          playlistId: s.currentPlaylist || "",
+          rotation: s.rotation !== undefined ? s.rotation : 0
+        };
+      }
+      massLaunchStagingCache[screenId].playlistId = val;
+    }
+
+    function onMassLaunchScreenRotationChange(screenId, val) {
+      const rot = parseInt(val, 10) || 0;
+      if (!massLaunchStagingCache[screenId]) {
+        const s = appState.screenDataCache[screenId] || {};
+        massLaunchStagingCache[screenId] = {
+          playlistId: s.currentPlaylist || "",
+          rotation: s.rotation !== undefined ? s.rotation : 0
+        };
+      }
+      massLaunchStagingCache[screenId].rotation = rot;
+    }
+
     function renderMassLaunchTvOverviewTable() {
       const container = document.getElementById("massLaunchTvOverviewBody");
+      const targetCountEl = document.getElementById("massLaunchTargetCount");
       if (!container) return;
 
       const pairedScreenIds = Object.keys(appState.screenDataCache).filter(
         (id) => appState.screenDataCache[id]?.status === "paired"
       );
 
-      if (pairedScreenIds.length === 0) {
-        container.innerHTML = `<tr><td colspan="6" class="text-muted text-center py-4">No paired TVs found. Pair screens on the Screens tab first.</td></tr>`;
-        return;
+      if (targetCountEl) {
+        targetCountEl.textContent = `${pairedScreenIds.length} TV${pairedScreenIds.length === 1 ? "" : "s"}`;
       }
 
-      const scopeSelect = document.getElementById("massLaunchTargetScope");
-      const scope = scopeSelect ? scopeSelect.value : "all";
+      const playlists = appState.playlistsCache || [];
+
+      if (pairedScreenIds.length === 0) {
+        container.innerHTML = `<tr><td colspan="4" class="text-muted text-center py-4">No paired TVs found. Pair screens on the Screens tab first.</td></tr>`;
+        return;
+      }
 
       container.innerHTML = pairedScreenIds.map((id) => {
         const s = appState.screenDataCache[id];
@@ -780,12 +768,30 @@
         const lastSeenMs = getTimestampMs(s.lastSeen, id);
         const isOnline = isScreenOnline(lastSeenMs);
 
-        if (scope === "online" && !isOnline) return "";
+        const activePlaylistId = s.currentPlaylist || "";
+        const activeRotation = s.rotation !== undefined ? s.rotation : 0;
 
-        const playlistObj = (appState.playlistsCache || []).find((p) => p.id === s.currentPlaylist);
-        const playlistName = playlistObj ? playlistObj.name : "— none —";
-        const rotation = (s.rotation !== undefined ? s.rotation : 0) + "°";
-        const layout = s.layoutMode === "split" ? `Split (${s.splitRatio || 20}%)` : "Single";
+        const stagedObj = massLaunchStagingCache[id];
+        const selectedPlaylistId = stagedObj !== undefined ? stagedObj.playlistId : activePlaylistId;
+        const selectedRotation = stagedObj !== undefined ? stagedObj.rotation : activeRotation;
+
+        let playlistOptionsHtml = `<option value="">— None (Clear Playlist) —</option>`;
+        playlists.forEach((p) => {
+          const itemCount = (p.items || []).length;
+          const isSelected = p.id === selectedPlaylistId;
+          playlistOptionsHtml += `<option value="${p.id}" ${isSelected ? "selected" : ""}>${p.name} (${itemCount} items)</option>`;
+        });
+
+        const rotations = [
+          { val: 0, label: "0° (Standard Landscape)" },
+          { val: 90, label: "90° (Portrait Right)" },
+          { val: 180, label: "180° (Inverted)" },
+          { val: 270, label: "270° (Portrait Left)" }
+        ];
+
+        let rotationOptionsHtml = rotations.map(r => {
+          return `<option value="${r.val}" ${r.val === selectedRotation ? "selected" : ""}>${r.label}</option>`;
+        }).join("");
 
         return `
           <tr>
@@ -795,62 +801,66 @@
                 ${isOnline ? "Online" : "Offline"}
               </span>
             </td>
-            <td><span class="fw-semibold text-dark">${name}</span></td>
-            <td><span class="badge bg-light text-dark border px-2 py-1">${playlistName}</span></td>
-            <td><span class="badge bg-secondary-subtle text-dark border px-2 py-1">${rotation}</span></td>
-            <td><span class="badge bg-secondary-subtle text-dark border px-2 py-1">${layout}</span></td>
-            <td class="text-muted small">${formatLastSeenTime(lastSeenMs)}</td>
+            <td>
+              <span class="fw-bold text-dark d-block">${name}</span>
+            </td>
+            <td>
+              <select class="form-select form-select-sm border-secondary-subtle"
+                onchange="onMassLaunchScreenPlaylistChange('${id}', this.value)">
+                ${playlistOptionsHtml}
+              </select>
+            </td>
+            <td>
+              <select class="form-select form-select-sm border-secondary-subtle"
+                onchange="onMassLaunchScreenRotationChange('${id}', this.value)">
+                ${rotationOptionsHtml}
+              </select>
+            </td>
           </tr>
         `;
       }).join("");
     }
 
-    function toggleMassLaunchAdvanced() {
-      const panel = document.getElementById("massLaunchAdvancedPanel");
-      const label = document.getElementById("massLaunchAdvancedToggleLabel");
-      if (!panel || !label) return;
-
-      if (panel.style.display === "none") {
-        panel.style.display = "block";
-        label.textContent = "Hide Advanced Layout Options";
-      } else {
-        panel.style.display = "none";
-        label.textContent = "Show Advanced Layout Options";
-      }
-    }
-
-    async function launchToAllScreens() {
-      const playlistSelect = document.getElementById("massLaunchPlaylist");
-      const rotationSelect = document.getElementById("massLaunchRotation");
-      const scopeSelect = document.getElementById("massLaunchTargetScope");
-      const btn = document.getElementById("massLaunchBtn");
-
-      if (!playlistSelect || !rotationSelect || !btn) return;
-
-      const playlistId = playlistSelect.value;
-      const rotation = parseInt(rotationSelect.value, 10) || 0;
-      const scope = scopeSelect ? scopeSelect.value : "all";
-
-      const playlistObj = (appState.playlistsCache || []).find((p) => p.id === playlistId);
-      const playlistName = playlistObj ? playlistObj.name : "None (Clear Playlist)";
-
-      // Identify target screens
+    function saveMassLaunchConfig() {
       const pairedScreenIds = Object.keys(appState.screenDataCache).filter(
         (id) => appState.screenDataCache[id]?.status === "paired"
       );
 
-      let targetIds = [];
-      if (scope === "online") {
-        targetIds = pairedScreenIds.filter((id) => {
-          const s = appState.screenDataCache[id];
-          const lastSeenMs = getTimestampMs(s.lastSeen, id);
-          return isScreenOnline(lastSeenMs);
-        });
-      } else {
-        targetIds = pairedScreenIds;
+      if (pairedScreenIds.length === 0) {
+        if (AppModules.showToast) {
+          AppModules.showToast("No paired TVs found to save configuration.", "info");
+        }
+        return;
       }
 
-      if (targetIds.length === 0) {
+      pairedScreenIds.forEach((id) => {
+        const s = appState.screenDataCache[id] || {};
+        if (!massLaunchStagingCache[id]) {
+          massLaunchStagingCache[id] = {
+            playlistId: s.currentPlaylist || "",
+            rotation: s.rotation !== undefined ? s.rotation : 0
+          };
+        }
+      });
+
+      const statusTextEl = document.getElementById("massLaunchStatusText");
+      if (statusTextEl) {
+        statusTextEl.style.display = "block";
+        statusTextEl.textContent = `✓ Mass launch configurations saved for ${pairedScreenIds.length} TVs! Click Launch All to broadcast securely.`;
+        setTimeout(() => { statusTextEl.style.display = "none"; }, 6000);
+      }
+
+      if (AppModules.showToast) {
+        AppModules.showToast(`💾 Mass launch configurations saved for ${pairedScreenIds.length} TVs!`, "success");
+      }
+    }
+
+    function launchToAllScreens() {
+      const pairedScreenIds = Object.keys(appState.screenDataCache).filter(
+        (id) => appState.screenDataCache[id]?.status === "paired"
+      );
+
+      if (pairedScreenIds.length === 0) {
         if (AppModules.showToast) {
           AppModules.showToast("No target TVs available to launch.", "error");
         } else {
@@ -859,47 +869,88 @@
         return;
       }
 
-      if (!playlistId) {
-        if (!confirm(`Warning: No playlist selected. This will set rotation (${rotation}°) and clear active playlists on all ${targetIds.length} TVs. Continue?`)) {
-          return;
-        }
-      } else {
-        if (!confirm(`🚀 Launch Playlist "${playlistName}" & Rotation (${rotation}°) to ALL ${targetIds.length} TVs at once?`)) {
-          return;
-        }
+      const modal = document.getElementById("massLaunchConfirmModal");
+      const countEl = document.getElementById("modalScreenCount");
+      const tbody = document.getElementById("modalConfirmBody");
+      const playlists = appState.playlistsCache || [];
+
+      if (countEl) countEl.textContent = `${pairedScreenIds.length} TV${pairedScreenIds.length === 1 ? "" : "s"}`;
+
+      if (tbody) {
+        tbody.innerHTML = pairedScreenIds.map((id) => {
+          const s = appState.screenDataCache[id] || {};
+          const name = s.name || `TV (${id})`;
+
+          const staged = massLaunchStagingCache[id];
+          const playlistId = staged !== undefined ? staged.playlistId : (s.currentPlaylist || "");
+          const rotation = staged !== undefined ? staged.rotation : (s.rotation !== undefined ? s.rotation : 0);
+
+          const playlistObj = playlists.find(p => p.id === playlistId);
+          const playlistName = playlistObj ? playlistObj.name : "None (Clear Playlist)";
+
+          return `
+            <tr>
+              <td class="fw-semibold text-dark">${name}</td>
+              <td><span class="badge bg-light text-dark border">${playlistName}</span></td>
+              <td><span class="badge bg-secondary-subtle text-dark border">${rotation}°</span></td>
+            </tr>
+          `;
+        }).join("");
       }
 
-      // Enter loading state
-      const originalBtnText = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> LAUNCHING...`;
+      if (modal) {
+        modal.style.display = "flex";
+      }
+    }
+
+    function closeMassLaunchModal() {
+      const modal = document.getElementById("massLaunchConfirmModal");
+      if (modal) {
+        modal.style.display = "none";
+      }
+    }
+
+    async function executeMassLaunch() {
+      const pairedScreenIds = Object.keys(appState.screenDataCache).filter(
+        (id) => appState.screenDataCache[id]?.status === "paired"
+      );
+
+      const modalBtn = document.getElementById("modalConfirmLaunchBtn");
+      const headerBtn = document.getElementById("massLaunchBtn");
+
+      const originalModalHtml = modalBtn ? modalBtn.innerHTML : "";
+      const originalHeaderHtml = headerBtn ? headerBtn.innerHTML : "";
+
+      if (modalBtn) {
+        modalBtn.disabled = true;
+        modalBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> BROADCASTING...`;
+      }
+      if (headerBtn) {
+        headerBtn.disabled = true;
+        headerBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> LAUNCHING...`;
+      }
 
       try {
-        const update = {
-          currentPlaylist: playlistId || null,
-          rotation: rotation
-        };
-
-        const isAdvancedOpen = document.getElementById("massLaunchAdvancedPanel")?.style.display !== "none";
-        if (isAdvancedOpen) {
-          const layoutMode = document.getElementById("massLaunchLayoutMode")?.value || "single";
-          const bottomUrl = (document.getElementById("massLaunchBottomUrl")?.value || "").trim();
-          const splitRatio = parseInt(document.getElementById("massLaunchSplitRatio")?.value || "20", 10);
-
-          update.layoutMode = layoutMode;
-          update.bottomWebUrl = bottomUrl || null;
-          update.splitRatio = splitRatio;
-        }
-
-        // Chunk into batches of 500
         const batches = [];
         let batch = db.batch();
         let opCount = 0;
 
-        targetIds.forEach((screenId) => {
+        pairedScreenIds.forEach((screenId) => {
+          const s = appState.screenDataCache[screenId];
+          const staged = massLaunchStagingCache[screenId];
+
+          const playlistId = staged ? staged.playlistId : (s ? s.currentPlaylist : null);
+          const rotation = staged ? staged.rotation : (s && s.rotation !== undefined ? s.rotation : 0);
+
+          const update = {
+            currentPlaylist: playlistId || null,
+            rotation: rotation
+          };
+
           batch.update(db.collection("screens").doc(screenId), update);
-          // Also clear any pending changes for that screen
           delete appState.pendingChanges[screenId];
+          delete massLaunchStagingCache[screenId];
+
           opCount++;
           if (opCount % 500 === 0) {
             batches.push(batch.commit());
@@ -913,20 +964,17 @@
 
         await Promise.all(batches);
 
-        // Re-render target screen rows
-        targetIds.forEach((screenId) => {
-          const s = appState.screenDataCache[screenId];
-          if (s) renderScreenRow(screenId, s);
-        });
+        closeMassLaunchModal();
+        renderMassLaunchTvOverviewTable();
 
         if (AppModules.showToast) {
-          AppModules.showToast(`🚀 Mass Launch Successful! Broadcast sent to ${targetIds.length} TVs!`, "success");
+          AppModules.showToast(`🚀 Mass Launch Successful! Broadcast sent securely to ${pairedScreenIds.length} TVs!`, "success");
         }
 
         const statusTextEl = document.getElementById("massLaunchStatusText");
         if (statusTextEl) {
           statusTextEl.style.display = "block";
-          statusTextEl.textContent = `✓ Last broadcast: ${playlistName} (${rotation}°) to ${targetIds.length} TVs`;
+          statusTextEl.textContent = `✓ Broadcast securely sent to ${pairedScreenIds.length} TVs!`;
           setTimeout(() => { statusTextEl.style.display = "none"; }, 8000);
         }
       } catch (err) {
@@ -937,28 +985,14 @@
           alert(`Mass Launch failed: ${err.message}`);
         }
       } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalBtnText;
-      }
-    }
-
-    function onMassLaunchLayoutModeChange() {
-      const modeSelect = document.getElementById("massLaunchLayoutMode");
-      const bottomUrlInput = document.getElementById("massLaunchBottomUrl");
-      const splitRatioSelect = document.getElementById("massLaunchSplitRatio");
-      if (!modeSelect) return;
-
-      const isSplit = modeSelect.value === "split";
-      if (bottomUrlInput) {
-        bottomUrlInput.disabled = !isSplit;
-        if (isSplit) {
-          bottomUrlInput.placeholder = "https://... (bottom strip URL)";
-        } else {
-          bottomUrlInput.placeholder = "Disabled in Single layout";
+        if (modalBtn) {
+          modalBtn.disabled = false;
+          modalBtn.innerHTML = originalModalHtml;
         }
-      }
-      if (splitRatioSelect) {
-        splitRatioSelect.disabled = !isSplit;
+        if (headerBtn) {
+          headerBtn.disabled = false;
+          headerBtn.innerHTML = originalHeaderHtml;
+        }
       }
     }
 
@@ -979,11 +1013,13 @@
       pushChanges,
       removeScreen,
       populateMassLaunchPlaylists,
-      onMassLaunchPlaylistChange,
       updateMassLaunchTargetCount,
-      toggleMassLaunchAdvanced,
-      onMassLaunchLayoutModeChange,
       renderMassLaunchTvOverviewTable,
+      onMassLaunchScreenPlaylistChange,
+      onMassLaunchScreenRotationChange,
+      saveMassLaunchConfig,
+      closeMassLaunchModal,
+      executeMassLaunch,
       launchToAllScreens
     };
   };
