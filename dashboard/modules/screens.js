@@ -15,6 +15,118 @@
 
   const ONLINE_THRESHOLD_MS = 720000; // 12 min (2.4× the 5-min Android heartbeat) — matches backend and all other dashboard modules
 
+  // ===== MULTI-SLOT TIMER HELPERS =====
+
+  // Convert "HH:MM" (24h) to total minutes from midnight
+  function hhmm24ToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return 0;
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  }
+
+  // Convert "HH:MM" 24h to "HH:MM AM/PM" 12h display
+  function hhmm24To12h(timeStr) {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    let h = parseInt(parts[0], 10);
+    const m = parts[1] || '00';
+    const period = h >= 12 ? 'PM' : 'AM';
+    if (h === 0) h = 12;
+    else if (h > 12) h -= 12;
+    return `${String(h).padStart(2, '0')}:${m} ${period}`;
+  }
+
+  // Convert legacy "HH:MM AM/PM" to "HH:MM" 24h
+  function legacy12hTo24h(timeStr) {
+    if (!timeStr) return '09:00';
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!match) return '09:00';
+    let h = parseInt(match[1], 10);
+    const m = match[2];
+    const p = match[3].toUpperCase();
+    if (p === 'PM' && h < 12) h += 12;
+    if (p === 'AM' && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${m}`;
+  }
+
+  // Get the currently active slot (or null) from a timerSlots array
+  function getActiveSlot(timerSlots) {
+    if (!Array.isArray(timerSlots) || timerSlots.length === 0) return null;
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    for (const slot of timerSlots) {
+      if (!slot.start || !slot.end) continue;
+      const startMins = hhmm24ToMinutes(slot.start);
+      const endMins = hhmm24ToMinutes(slot.end);
+      if (startMins < endMins) {
+        if (nowMins >= startMins && nowMins < endMins) return slot;
+      } else if (startMins > endMins) {
+        // Overnight slot
+        if (nowMins >= startMins || nowMins < endMins) return slot;
+      }
+    }
+    return null;
+  }
+
+  // Build timer badge HTML from screen data + pending overrides
+  function getScreenTimerState(s, pendingOverride = null) {
+    const timerEnabled = pendingOverride?.timerEnabled !== undefined
+      ? pendingOverride.timerEnabled
+      : (s?.timerEnabled === true);
+
+    // Resolve slots: pending overrides take priority
+    let slots = pendingOverride?.timerSlots !== undefined
+      ? pendingOverride.timerSlots
+      : (s?.timerSlots || []);
+
+    // Fallback: migrate legacy single-slot fields
+    if (slots.length === 0 && s?.timerStart && s?.timerEnd) {
+      slots = [{ start: legacy12hTo24h(s.timerStart), end: legacy12hTo24h(s.timerEnd), playlistId: s.currentPlaylist || '' }];
+    }
+
+    if (!timerEnabled || slots.length === 0) {
+      return {
+        status: 'off',
+        timerEnabled: false,
+        slots,
+        activeSlot: null,
+        activePlaylistId: s?.currentPlaylist || '',
+        badgeHtml: '<span class="badge-timer-off" title="Click to configure timer slots">⏰ Timer Off</span>'
+      };
+    }
+
+    const activeSlot = getActiveSlot(slots);
+    const slotCount = slots.length;
+
+    if (activeSlot) {
+      const label = `${hhmm24To12h(activeSlot.start)}–${hhmm24To12h(activeSlot.end)}`;
+      return {
+        status: 'active',
+        timerEnabled: true,
+        slots,
+        activeSlot,
+        activePlaylistId: activeSlot.playlistId || '',
+        badgeHtml: `<span class="badge-timer-active" title="Active: ${label}"><span class="pulse-dot-green"></span> ⏱️ ${label}</span>`
+      };
+    } else {
+      return {
+        status: 'scheduled',
+        timerEnabled: true,
+        slots,
+        activeSlot: null,
+        activePlaylistId: s?.currentPlaylist || '',
+        badgeHtml: `<span class="badge-timer-off" title="${slotCount} slot(s) scheduled, none active now">⏰ ${slotCount} Slot${slotCount > 1 ? 's' : ''}</span>`
+      };
+    }
+  }
+
+  AppModules.hhmm24ToMinutes = hhmm24ToMinutes;
+  AppModules.hhmm24To12h = hhmm24To12h;
+  AppModules.legacy12hTo24h = legacy12hTo24h;
+  AppModules.getActiveSlot = getActiveSlot;
+  AppModules.getScreenTimerState = getScreenTimerState;
+
   function isScreenOnline(lastSeenMs) {
     if (!lastSeenMs || lastSeenMs <= 0) return false;
     const diff = Date.now() - lastSeenMs;
@@ -95,6 +207,35 @@
       }
     }
 
+    function updateStatCards(pairedCount, onlineCount) {
+      const offlineCount = Math.max(0, pairedCount - onlineCount);
+      const totalEl = document.getElementById("statTotalScreens");
+      const onlineEl = document.getElementById("statOnlineScreens");
+      const offlineEl = document.getElementById("statOfflineScreens");
+      if (totalEl) totalEl.textContent = pairedCount;
+      if (onlineEl) onlineEl.textContent = onlineCount;
+      if (offlineEl) offlineEl.textContent = offlineCount;
+
+      // Update premium stat card progress bars
+      const onlineBar = document.getElementById("statOnlineBar");
+      const offlineBar = document.getElementById("statOfflineBar");
+      if (pairedCount > 0) {
+        if (onlineBar) onlineBar.style.width = Math.round((onlineCount / pairedCount) * 100) + "%";
+        if (offlineBar) offlineBar.style.width = Math.round((offlineCount / pairedCount) * 100) + "%";
+      } else {
+        if (onlineBar) onlineBar.style.width = "0%";
+        if (offlineBar) offlineBar.style.width = "0%";
+      }
+
+      const countEl = document.getElementById("screenCount");
+      const pillEl = document.querySelector(".status-total-pill");
+      if (countEl) countEl.textContent = `${onlineCount} of ${pairedCount} screens online`;
+      if (pillEl) {
+        if (onlineCount > 0) pillEl.classList.add("is-online");
+        else pillEl.classList.remove("is-online");
+      }
+    }
+
     function checkScreenStatuses() {
       let onlineCount = 0;
       let pairedCount = 0;
@@ -133,35 +274,49 @@
         }
       });
 
-      const countEl = document.getElementById("screenCount");
-      const pillEl = document.querySelector(".status-total-pill");
-      if (countEl) countEl.textContent = `${onlineCount} of ${pairedCount} screens online`;
-      if (pillEl) {
-        if (onlineCount > 0) {
-          pillEl.classList.add("is-online");
-        } else {
-          pillEl.classList.remove("is-online");
-        }
-      }
+      updateStatCards(pairedCount, onlineCount);
       updateMassLaunchTargetCount();
     }
 
+    function openAddScreenModal() {
+      const modal = document.getElementById("addScreenModal");
+      const codeInput = document.getElementById("pairCode");
+      const nameInput = document.getElementById("pairName");
+      if (codeInput) codeInput.value = "";
+      if (nameInput) nameInput.value = "";
+      if (modal) modal.style.display = "flex";
+    }
+
+    function closeAddScreenModal() {
+      const modal = document.getElementById("addScreenModal");
+      if (modal) modal.style.display = "none";
+    }
+
     function addScreen() {
-      const code = document.getElementById("pairCode").value.trim().toUpperCase();
-      const name = document.getElementById("pairName").value.trim();
-      if (!code || !name) return alert("Enter both the pairing code and a name.");
+      const codeInput = document.getElementById("pairCode");
+      const nameInput = document.getElementById("pairName");
+      const code = codeInput ? codeInput.value.trim().toUpperCase() : "";
+      const name = nameInput ? nameInput.value.trim() : "";
+      if (!code || !name) return alert("Enter both the pairing code and a screen name.");
 
       const ref = db.collection("screens").doc(code);
       ref.get().then((doc) => {
         if (!doc.exists) {
-          alert("No screen found with that code. Make sure the TV is showing this exact code.");
+          alert("No screen found with that code. Make sure your TV app is showing this exact code.");
           return;
         }
 
         ref.update({ status: "paired", name })
           .then(() => {
-            document.getElementById("pairCode").value = "";
-            document.getElementById("pairName").value = "";
+            closeAddScreenModal();
+            if (AppModules.showToast) {
+              AppModules.showToast(`TV Screen '${name}' paired successfully!`, "success");
+            } else {
+              alert(`TV Screen '${name}' paired successfully!`);
+            }
+          })
+          .catch((err) => {
+            alert(`Pairing failed: ${err.message}`);
           });
       });
     }
@@ -171,7 +326,7 @@
         if ("Notification" in window && Notification.permission === "default") {
           Notification.requestPermission();
         }
-        offlineCheckInterval = setInterval(checkScreenStatuses, 30000);
+        offlineCheckInterval = setInterval(checkScreenStatuses, 60000);
       }
 
       db.collection("screens").onSnapshot((snapshot) => {
@@ -193,16 +348,7 @@
           }
         });
 
-        const countEl = document.getElementById("screenCount");
-        const pillEl = document.querySelector(".status-total-pill");
-        if (countEl) countEl.textContent = `${onlineCount} of ${pairedCount} screens online`;
-        if (pillEl) {
-          if (onlineCount > 0) {
-            pillEl.classList.add("is-online");
-          } else {
-            pillEl.classList.remove("is-online");
-          }
-        }
+        updateStatCards(pairedCount, onlineCount);
 
         snapshot.docChanges().forEach((change) => {
           const doc = change.doc;
@@ -258,9 +404,6 @@
           renderScreenRow(doc.id, s);
         });
 
-        if (typeof window.populateAnalyticsScreenOptions === "function") {
-          window.populateAnalyticsScreenOptions();
-        }
         if (typeof window.renderGroupsTable === "function") {
           window.renderGroupsTable();
         }
@@ -274,15 +417,22 @@
 
     appState.screenStatusFilter = appState.screenStatusFilter || "all";
 
-    function filterScreensByStatus(filterMode, btnEl) {
+    function filterScreensByStatus(filterMode, btnEl = null) {
       appState.screenStatusFilter = filterMode || "all";
 
-      if (btnEl) {
-        document.querySelectorAll(".status-filter-group .filter-pill").forEach(btn => {
-          btn.classList.remove("active");
-        });
-        btnEl.classList.add("active");
-      }
+      // Sync filter pills UI
+      const targetPill = btnEl || document.querySelector(`.status-filter-group .filter-pill[data-filter="${filterMode}"]`);
+      document.querySelectorAll(".status-filter-group .filter-pill").forEach(btn => {
+        btn.classList.remove("active");
+      });
+      if (targetPill) targetPill.classList.add("active");
+
+      // Sync stat cards UI
+      document.querySelectorAll(".stat-card").forEach(card => {
+        card.classList.remove("active-filter");
+      });
+      const targetCard = document.querySelector(`.stat-card[data-filter="${filterMode}"]`);
+      if (targetCard) targetCard.classList.add("active-filter");
 
       Object.keys(appState.screenRows).forEach((docId) => {
         const s = appState.screenDataCache[docId];
@@ -368,8 +518,10 @@
         tr.classList.remove("row-is-online");
       }
 
+      const timerState = getScreenTimerState(s, pending);
+
       if (isFirstRender) {
-        // Full build on first render — use named cell classes for surgical updates later
+        // Full build on first render — 7 compact columns, zero horizontal scrolling
         tr.innerHTML = `
           <td class="cell-status">
             <span class="badge-status ${isOnline ? "online" : "offline"}">
@@ -378,15 +530,22 @@
             </span>
           </td>
           <td class="cell-name">${nameCellHtml(docId, s)}</td>
-          <td class="cell-layout">${layoutDropdown(docId, s.layoutMode)}</td>
           <td class="cell-playlist">${playlistDropdown(docId, s.currentPlaylist)}</td>
-          <td class="cell-bottomurl">${effectiveLayoutMode === "split"
-            ? bottomWebUrlInput(docId, s.bottomWebUrl)
-            : '<span class="text-muted small">—</span>'}</td>
-          <td class="cell-splitratio">${effectiveLayoutMode === "split"
-            ? splitRatioDropdown(docId, s.splitRatio)
-            : '<span class="text-muted small">—</span>'}</td>
-          <td class="cell-rotation">${rotationDropdown(docId, s.rotation)}</td>
+          <td class="cell-timer">${timerScheduleCell(docId, s)}</td>
+          <td class="cell-layout">
+            <div class="d-flex flex-column gap-1">
+              <div class="d-flex align-items-center gap-1">
+                ${layoutDropdown(docId, s.layoutMode)}
+                ${rotationDropdown(docId, s.rotation)}
+              </div>
+              ${effectiveLayoutMode === "split" ? `
+                <div class="mt-1 d-flex flex-column gap-1 p-1 bg-light rounded border">
+                  ${bottomWebUrlInput(docId, s.bottomWebUrl)}
+                  ${splitRatioDropdown(docId, s.splitRatio)}
+                </div>
+              ` : ""}
+            </div>
+          </td>
           <td class="cell-lastseen">${formatLastSeenTime(lastSeenMs)}</td>
           <td class="text-end cell-actions">
             <div class="d-inline-flex gap-1 align-items-center justify-content-end">
@@ -413,13 +572,11 @@
         `;
       }
 
-      // Update name cell: if no longer in rename state or force update requested, revert to standard name display
+      // Update name cell
       const nameCell = tr.querySelector(".cell-name");
       const isCurrentlyRenaming = appState.renamingScreenId === docId;
-      if (nameCell) {
-        if (!isCurrentlyRenaming || forceLayoutUpdate) {
-          nameCell.innerHTML = nameCellHtml(docId, s);
-        }
+      if (nameCell && (!isCurrentlyRenaming || forceLayoutUpdate)) {
+        nameCell.innerHTML = nameCellHtml(docId, s);
       }
 
       // Always update last-seen time
@@ -433,39 +590,34 @@
         hasPending ? pushBtn.classList.add("has-pending") : pushBtn.classList.remove("has-pending");
       }
 
-      // Surgical updates for layout, playlist, bottom URL, split ratio, rotation
-      const layoutCell = tr.querySelector(".cell-layout");
-      const isUserInLayout = activeEl && layoutCell && layoutCell.contains(activeEl);
-      if (layoutCell && (!isUserInLayout || forceLayoutUpdate)) {
-        layoutCell.innerHTML = layoutDropdown(docId, s.layoutMode);
-      }
-
       const playlistCell = tr.querySelector(".cell-playlist");
       const isUserInPlaylist = activeEl && playlistCell && playlistCell.contains(activeEl);
       if (playlistCell && (!isUserInPlaylist || forceLayoutUpdate)) {
         playlistCell.innerHTML = playlistDropdown(docId, s.currentPlaylist);
       }
 
-      const bottomUrlCell = tr.querySelector(".cell-bottomurl");
-      const isUserInBottomUrl = activeEl && bottomUrlCell && bottomUrlCell.contains(activeEl);
-      if (bottomUrlCell && (!isUserInBottomUrl || forceLayoutUpdate)) {
-        bottomUrlCell.innerHTML = effectiveLayoutMode === "split"
-          ? bottomWebUrlInput(docId, s.bottomWebUrl)
-          : '<span class="text-muted small">—</span>';
+      const timerCell = tr.querySelector(".cell-timer");
+      if (timerCell) {
+        timerCell.innerHTML = timerScheduleCell(docId, s);
       }
 
-      const splitRatioCell = tr.querySelector(".cell-splitratio");
-      const isUserInSplitRatio = activeEl && splitRatioCell && splitRatioCell.contains(activeEl);
-      if (splitRatioCell && (!isUserInSplitRatio || forceLayoutUpdate)) {
-        splitRatioCell.innerHTML = effectiveLayoutMode === "split"
-          ? splitRatioDropdown(docId, s.splitRatio)
-          : '<span class="text-muted small">—</span>';
-      }
-
-      const rotationCell = tr.querySelector(".cell-rotation");
-      const isUserInRotation = activeEl && rotationCell && rotationCell.contains(activeEl);
-      if (rotationCell && (!isUserInRotation || forceLayoutUpdate)) {
-        rotationCell.innerHTML = rotationDropdown(docId, s.rotation);
+      const layoutCell = tr.querySelector(".cell-layout");
+      const isUserInLayout = activeEl && layoutCell && layoutCell.contains(activeEl);
+      if (layoutCell && (!isUserInLayout || forceLayoutUpdate)) {
+        layoutCell.innerHTML = `
+          <div class="d-flex flex-column gap-1">
+            <div class="d-flex align-items-center gap-1">
+              ${layoutDropdown(docId, s.layoutMode)}
+              ${rotationDropdown(docId, s.rotation)}
+            </div>
+            ${effectiveLayoutMode === "split" ? `
+              <div class="mt-1 d-flex flex-column gap-1 p-1 bg-light rounded border">
+                ${bottomWebUrlInput(docId, s.bottomWebUrl)}
+                ${splitRatioDropdown(docId, s.splitRatio)}
+              </div>
+            ` : ""}
+          </div>
+        `;
       }
     }
 
@@ -543,6 +695,36 @@
       </select>`;
     }
 
+    function afterPlaylistDropdown(screenId, currentAfterPlaylistId) {
+      const pending = appState.pendingChanges[screenId]?.afterTimerPlaylist;
+      const effectiveVal = pending !== undefined ? pending : (currentAfterPlaylistId || "");
+      const options = appState.playlistsCache.map((p) =>
+        `<option value="${p.id}" ${p.id === effectiveVal ? "selected" : ""}>${p.name}</option>`
+      ).join("");
+
+      return `<select class="playlistSelect border-amber-subtle" onchange="onAfterPlaylistChange('${screenId}', this.value)" title="Playlist automatically assigned after timer completes">
+        <option value="" ${effectiveVal === "" ? "selected" : ""}>— none —</option>${options}
+      </select>`;
+    }
+
+    function timerScheduleCell(screenId, s) {
+      const pending = appState.pendingChanges[screenId];
+      const timerState = getScreenTimerState(s, pending);
+
+      const isTriggerActive = timerState.status === "active";
+      const isTriggerCompleted = timerState.status === "completed";
+
+      let btnClass = "btn-timer-trigger";
+      if (isTriggerActive) btnClass += " is-active";
+      else if (isTriggerCompleted) btnClass += " is-completed";
+
+      return `
+        <button type="button" class="${btnClass}" onclick="openScreenTimerModal('${screenId}')">
+          ${timerState.badgeHtml}
+        </button>
+      `;
+    }
+
     function bottomWebUrlInput(screenId, currentBottomWebUrl) {
       const pending = appState.pendingChanges[screenId]?.bottomWebUrl;
       const effectiveVal = pending !== undefined ? pending : (currentBottomWebUrl || "");
@@ -580,12 +762,8 @@
 
     function setPendingField(screenId, field, value, committedValue) {
       if (!appState.pendingChanges[screenId]) appState.pendingChanges[screenId] = {};
-      // Always store the pending value — never auto-delete even if it matches committed.
-      // The Push button should be enabled as long as the user made a selection.
-      // Only clear after a successful push.
       appState.pendingChanges[screenId][field] = value;
 
-      // Update just the Push button state without re-rendering the whole row
       const tr = appState.screenRows[screenId];
       if (tr) {
         const pending = appState.pendingChanges[screenId];
@@ -606,10 +784,9 @@
           tr.classList.remove("row-has-pending");
         }
 
-        // If layout mode changed, force refreshing split-specific columns immediately
         if (field === "layoutMode") {
           const s = appState.screenDataCache[screenId];
-          if (s) renderScreenRow(screenId, s, true /* forceLayoutUpdate */);
+          if (s) renderScreenRow(screenId, s, true);
         }
       }
     }
@@ -620,6 +797,10 @@
 
     function onPlaylistChange(screenId, value) {
       setPendingField(screenId, "playlist", value, appState.screenDataCache[screenId]?.currentPlaylist || "");
+    }
+
+    function onAfterPlaylistChange(screenId, value) {
+      setPendingField(screenId, "afterTimerPlaylist", value, appState.screenDataCache[screenId]?.afterTimerPlaylist || "");
     }
 
     function onBottomWebUrlChange(screenId, value) {
@@ -634,6 +815,214 @@
       setPendingField(screenId, "rotation", parseInt(value, 10), appState.screenDataCache[screenId]?.rotation || 0);
     }
 
+    // ===== MULTI-SLOT SCREEN TIMER MODAL HANDLERS =====
+
+    // Render the list of slot rows inside the modal
+    function renderModalSlotRows(slots) {
+      const container = document.getElementById('timerSlotsContainer');
+      if (!container) return;
+      const playlists = appState.playlistsCache || [];
+
+      container.innerHTML = '';
+
+      if (!slots || slots.length === 0) {
+        container.innerHTML = `<div class="timer-slot-empty">No slots yet. Click "+ Add Slot" to add a time window.</div>`;
+        return;
+      }
+
+      slots.forEach((slot, idx) => {
+        const playlistOpts = playlists.map(p =>
+          `<option value="${p.id}" ${p.id === (slot.playlistId || '') ? 'selected' : ''}>${p.name}</option>`
+        ).join('');
+
+        const row = document.createElement('div');
+        row.className = 'timer-slot-row';
+        row.dataset.idx = idx;
+        row.innerHTML = `
+          <div class="slot-num">${idx + 1}</div>
+          <div class="slot-time-group">
+            <input type="time" class="slot-time-input slot-start" value="${slot.start || '09:00'}" />
+            <span class="slot-arrow">→</span>
+            <input type="time" class="slot-time-input slot-end" value="${slot.end || '17:00'}" />
+          </div>
+          <div class="slot-playlist-group">
+            <select class="slot-playlist-select">
+              <option value="">— none —</option>
+              ${playlistOpts}
+            </select>
+          </div>
+          <button type="button" class="slot-remove-btn" title="Remove slot" onclick="removeTimerSlot(${idx})">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 4h12M5 4V2h6v2M6 7v6M10 7v6M3 4l1 10h8l1-10"/></svg>
+          </button>
+        `;
+        container.appendChild(row);
+      });
+
+      updateModalTimerPreview();
+    }
+
+    function readSlotsFromModal() {
+      const rows = document.querySelectorAll('#timerSlotsContainer .timer-slot-row');
+      const slots = [];
+      rows.forEach(row => {
+        const start = row.querySelector('.slot-start')?.value || '';
+        const end = row.querySelector('.slot-end')?.value || '';
+        const playlistId = row.querySelector('.slot-playlist-select')?.value || '';
+        slots.push({ start, end, playlistId });
+      });
+      return slots;
+    }
+
+    function openScreenTimerModal(screenId) {
+      const s = appState.screenDataCache[screenId] || {};
+      const pending = appState.pendingChanges[screenId] || {};
+
+      const modal = document.getElementById('screenTimerModal');
+      if (!modal) return;
+
+      const titleEl = document.getElementById('timerModalTitle');
+      if (titleEl) titleEl.textContent = `Timer Schedule — ${s.name || screenId}`;
+
+      const screenIdInput = document.getElementById('modalTimerScreenId');
+      if (screenIdInput) screenIdInput.value = screenId;
+
+      const enabledCb = document.getElementById('modalTimerEnabled');
+      const timerEnabled = pending.timerEnabled !== undefined ? pending.timerEnabled : (s.timerEnabled === true);
+      if (enabledCb) enabledCb.checked = timerEnabled;
+
+      // Resolve slots
+      let slots = pending.timerSlots !== undefined ? pending.timerSlots
+        : (s.timerSlots || []);
+
+      // Migrate legacy fields if no slots exist
+      if (slots.length === 0 && s.timerStart && s.timerEnd) {
+        slots = [{ start: legacy12hTo24h(s.timerStart), end: legacy12hTo24h(s.timerEnd), playlistId: s.currentPlaylist || '' }];
+      }
+
+      // Store working copy on window for add/remove slot callbacks
+      window._timerModalScreenId = screenId;
+      window._timerModalSlots = JSON.parse(JSON.stringify(slots));
+
+      toggleModalTimerInputs(timerEnabled);
+      renderModalSlotRows(window._timerModalSlots);
+
+      modal.style.display = 'flex';
+    }
+
+    function toggleModalTimerInputs(enabled) {
+      const optionsGroup = document.getElementById('modalTimerOptionsGroup');
+      if (optionsGroup) {
+        optionsGroup.style.opacity = enabled ? '1' : '0.45';
+        optionsGroup.style.pointerEvents = enabled ? 'auto' : 'none';
+      }
+      updateModalTimerPreview();
+    }
+
+    function updateModalTimerPreview() {
+      const previewEl = document.getElementById('modalTimerPreviewText');
+      if (!previewEl) return;
+
+      const enabled = document.getElementById('modalTimerEnabled')?.checked;
+      if (!enabled) {
+        previewEl.innerHTML = '<strong>Timer Disabled</strong> — Screen plays whatever playlist is assigned continuously.';
+        return;
+      }
+
+      const slots = readSlotsFromModal();
+      const playlists = appState.playlistsCache || [];
+
+      if (slots.length === 0) {
+        previewEl.innerHTML = '⚠️ No slots defined. Add at least one slot.';
+        return;
+      }
+
+      const now = new Date();
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+
+      const lines = slots.map((sl, i) => {
+        const startMins = hhmm24ToMinutes(sl.start);
+        const endMins = hhmm24ToMinutes(sl.end);
+        const pl = playlists.find(p => p.id === sl.playlistId);
+        const plName = pl ? pl.name : '(none)';
+        let isNow = false;
+        if (startMins < endMins) isNow = nowMins >= startMins && nowMins < endMins;
+        else if (startMins > endMins) isNow = nowMins >= startMins || nowMins < endMins;
+        const activeTag = isNow ? ' <span class="slot-preview-active">▶ NOW</span>' : '';
+        return `<div class="slot-preview-row"><span class="slot-preview-time">${hhmm24To12h(sl.start)} – ${hhmm24To12h(sl.end)}</span><span class="slot-preview-pl">${plName}</span>${activeTag}</div>`;
+      }).join('');
+
+      previewEl.innerHTML = lines;
+    }
+
+    function addTimerSlot() {
+      if (!window._timerModalSlots) window._timerModalSlots = [];
+      // Default new slot to next hour after last slot's end, or 09:00
+      const last = window._timerModalSlots[window._timerModalSlots.length - 1];
+      let startHr = 9, endHr = 10;
+      if (last && last.end) {
+        const endParts = last.end.split(':');
+        startHr = parseInt(endParts[0], 10);
+        endHr = Math.min(startHr + 1, 23);
+      }
+      window._timerModalSlots.push({
+        start: `${String(startHr).padStart(2,'0')}:00`,
+        end: `${String(endHr).padStart(2,'0')}:00`,
+        playlistId: ''
+      });
+      renderModalSlotRows(window._timerModalSlots);
+    }
+
+    function removeTimerSlot(idx) {
+      if (!window._timerModalSlots) return;
+      window._timerModalSlots.splice(idx, 1);
+      renderModalSlotRows(window._timerModalSlots);
+    }
+
+    function closeScreenTimerModal() {
+      const modal = document.getElementById('screenTimerModal');
+      if (modal) modal.style.display = 'none';
+      window._timerModalSlots = null;
+      window._timerModalScreenId = null;
+    }
+
+    function saveScreenTimerModal() {
+      const screenId = document.getElementById('modalTimerScreenId')?.value;
+      if (!screenId) return;
+
+      const enabled = document.getElementById('modalTimerEnabled')?.checked || false;
+
+      // Read slots from current modal rows
+      const slots = readSlotsFromModal();
+
+      // Validate: each slot must have start < end (or we allow overnight)
+      for (const sl of slots) {
+        if (!sl.start || !sl.end) {
+          if (AppModules.showToast) AppModules.showToast('Every slot must have a start and end time.', 'error');
+          return;
+        }
+      }
+
+      // Build pending update
+      setPendingField(screenId, 'timerEnabled', enabled, appState.screenDataCache[screenId]?.timerEnabled || false);
+      setPendingField(screenId, 'timerSlots', slots, appState.screenDataCache[screenId]?.timerSlots || []);
+
+      // Backward-compat legacy fields for Android app
+      if (slots.length > 0) {
+        setPendingField(screenId, 'timerStart', hhmm24To12h(slots[0].start), appState.screenDataCache[screenId]?.timerStart || '09:00 AM');
+        setPendingField(screenId, 'timerEnd', hhmm24To12h(slots[slots.length - 1].end), appState.screenDataCache[screenId]?.timerEnd || '05:00 PM');
+        setPendingField(screenId, 'playlist', slots[0].playlistId || '', appState.screenDataCache[screenId]?.currentPlaylist || '');
+      }
+
+      closeScreenTimerModal();
+
+      const s = appState.screenDataCache[screenId];
+      if (s) renderScreenRow(screenId, s, true);
+
+      if (AppModules.showToast) {
+        AppModules.showToast(`Timer schedule saved (${slots.length} slot${slots.length !== 1 ? 's' : ''}). Click Push to deploy.`, 'info');
+      }
+    }
+
     function pushChanges(screenId) {
       const pending = appState.pendingChanges[screenId];
       if (!pending || Object.keys(pending).length === 0) {
@@ -644,6 +1033,11 @@
       const update = {};
       if (pending.layoutMode !== undefined) update.layoutMode = pending.layoutMode;
       if (pending.playlist !== undefined) update.currentPlaylist = pending.playlist || null;
+      if (pending.afterTimerPlaylist !== undefined) update.afterTimerPlaylist = pending.afterTimerPlaylist || null;
+      if (pending.timerEnabled !== undefined) update.timerEnabled = pending.timerEnabled;
+      if (pending.timerSlots !== undefined) update.timerSlots = pending.timerSlots;
+      if (pending.timerStart !== undefined) update.timerStart = pending.timerStart;
+      if (pending.timerEnd !== undefined) update.timerEnd = pending.timerEnd;
       if (pending.bottomWebUrl !== undefined) update.bottomWebUrl = pending.bottomWebUrl || null;
       if (pending.splitRatio !== undefined) update.splitRatio = pending.splitRatio;
       if (pending.rotation !== undefined) update.rotation = pending.rotation;
@@ -719,27 +1113,51 @@
       renderMassLaunchTvOverviewTable();
     }
 
-    function onMassLaunchScreenPlaylistChange(screenId, val) {
+    function initStagingObject(screenId) {
       if (!massLaunchStagingCache[screenId]) {
         const s = appState.screenDataCache[screenId] || {};
         massLaunchStagingCache[screenId] = {
           playlistId: s.currentPlaylist || "",
+          afterTimerPlaylistId: s.afterTimerPlaylist || "",
+          timerEnabled: s.timerEnabled === true,
+          timerStart: s.timerStart || "09:00 AM",
+          timerEnd: s.timerEnd || "05:00 PM",
           rotation: s.rotation !== undefined ? s.rotation : 0
         };
       }
-      massLaunchStagingCache[screenId].playlistId = val;
+      return massLaunchStagingCache[screenId];
+    }
+
+    function onMassLaunchScreenPlaylistChange(screenId, val) {
+      const staged = initStagingObject(screenId);
+      staged.playlistId = val;
+    }
+
+    function onMassLaunchScreenAfterPlaylistChange(screenId, val) {
+      const staged = initStagingObject(screenId);
+      staged.afterTimerPlaylistId = val;
+    }
+
+    function onMassLaunchScreenTimerToggle(screenId, enabled) {
+      const staged = initStagingObject(screenId);
+      staged.timerEnabled = enabled;
+      renderMassLaunchTvOverviewTable();
+    }
+
+    function onMassLaunchScreenTimerStartChange(screenId, val) {
+      const staged = initStagingObject(screenId);
+      staged.timerStart = val;
+    }
+
+    function onMassLaunchScreenTimerEndChange(screenId, val) {
+      const staged = initStagingObject(screenId);
+      staged.timerEnd = val;
     }
 
     function onMassLaunchScreenRotationChange(screenId, val) {
       const rot = parseInt(val, 10) || 0;
-      if (!massLaunchStagingCache[screenId]) {
-        const s = appState.screenDataCache[screenId] || {};
-        massLaunchStagingCache[screenId] = {
-          playlistId: s.currentPlaylist || "",
-          rotation: s.rotation !== undefined ? s.rotation : 0
-        };
-      }
-      massLaunchStagingCache[screenId].rotation = rot;
+      const staged = initStagingObject(screenId);
+      staged.rotation = rot;
     }
 
     function renderMassLaunchTvOverviewTable() {
@@ -758,7 +1176,7 @@
       const playlists = appState.playlistsCache || [];
 
       if (pairedScreenIds.length === 0) {
-        container.innerHTML = `<tr><td colspan="4" class="text-muted text-center py-4">No paired TVs found. Pair screens on the Screens tab first.</td></tr>`;
+        container.innerHTML = `<tr><td colspan="6" class="text-muted text-center py-4">No paired TVs found. Pair screens on the Screens tab first.</td></tr>`;
         return;
       }
 
@@ -768,25 +1186,39 @@
         const lastSeenMs = getTimestampMs(s.lastSeen, id);
         const isOnline = isScreenOnline(lastSeenMs);
 
-        const activePlaylistId = s.currentPlaylist || "";
-        const activeRotation = s.rotation !== undefined ? s.rotation : 0;
-
         const stagedObj = massLaunchStagingCache[id];
-        const selectedPlaylistId = stagedObj !== undefined ? stagedObj.playlistId : activePlaylistId;
-        const selectedRotation = stagedObj !== undefined ? stagedObj.rotation : activeRotation;
+        const selectedPlaylistId = stagedObj !== undefined ? stagedObj.playlistId : (s.currentPlaylist || "");
+        const selectedAfterPlaylistId = stagedObj !== undefined ? stagedObj.afterTimerPlaylistId : (s.afterTimerPlaylist || "");
+        const selectedTimerEnabled = stagedObj !== undefined ? stagedObj.timerEnabled : (s.timerEnabled === true);
+        const selectedTimerStart = stagedObj !== undefined ? stagedObj.timerStart : (s.timerStart || "09:00 AM");
+        const selectedTimerEnd = stagedObj !== undefined ? stagedObj.timerEnd : (s.timerEnd || "05:00 PM");
+        const selectedRotation = stagedObj !== undefined ? stagedObj.rotation : (s.rotation !== undefined ? s.rotation : 0);
 
-        let playlistOptionsHtml = `<option value="">— None (Clear Playlist) —</option>`;
+        let playlistOptionsHtml = `<option value="">— None (Clear) —</option>`;
         playlists.forEach((p) => {
-          const itemCount = (p.items || []).length;
           const isSelected = p.id === selectedPlaylistId;
-          playlistOptionsHtml += `<option value="${p.id}" ${isSelected ? "selected" : ""}>${p.name} (${itemCount} items)</option>`;
+          playlistOptionsHtml += `<option value="${p.id}" ${isSelected ? "selected" : ""}>${p.name}</option>`;
         });
 
+        let afterPlaylistOptionsHtml = `<option value="">— None —</option>`;
+        playlists.forEach((p) => {
+          const isSelected = p.id === selectedAfterPlaylistId;
+          afterPlaylistOptionsHtml += `<option value="${p.id}" ${isSelected ? "selected" : ""}>${p.name}</option>`;
+        });
+
+        let startOptionsHtml = CLOCK_TIMES_12H.map(t =>
+          `<option value="${t}" ${t === selectedTimerStart ? "selected" : ""}>${t}</option>`
+        ).join("");
+
+        let endOptionsHtml = CLOCK_TIMES_12H.map(t =>
+          `<option value="${t}" ${t === selectedTimerEnd ? "selected" : ""}>${t}</option>`
+        ).join("");
+
         const rotations = [
-          { val: 0, label: "0° (Standard Landscape)" },
-          { val: 90, label: "90° (Portrait Right)" },
+          { val: 0, label: "0° (Landscape)" },
+          { val: 90, label: "90° (Portrait R)" },
           { val: 180, label: "180° (Inverted)" },
-          { val: 270, label: "270° (Portrait Left)" }
+          { val: 270, label: "270° (Portrait L)" }
         ];
 
         let rotationOptionsHtml = rotations.map(r => {
@@ -812,6 +1244,28 @@
             </td>
             <td>
               <select class="form-select form-select-sm border-secondary-subtle"
+                onchange="onMassLaunchScreenAfterPlaylistChange('${id}', this.value)">
+                ${afterPlaylistOptionsHtml}
+              </select>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-1">
+                <div class="form-check form-switch me-1" title="Toggle Clock Timer">
+                  <input class="form-check-input" type="checkbox" ${selectedTimerEnabled ? "checked" : ""} onchange="onMassLaunchScreenTimerToggle('${id}', this.checked)" />
+                </div>
+                ${selectedTimerEnabled ? `
+                  <select class="form-select form-select-sm clock-select" style="max-width: 105px;" onchange="onMassLaunchScreenTimerStartChange('${id}', this.value)">
+                    ${startOptionsHtml}
+                  </select>
+                  <span class="text-muted small">to</span>
+                  <select class="form-select form-select-sm clock-select" style="max-width: 105px;" onchange="onMassLaunchScreenTimerEndChange('${id}', this.value)">
+                    ${endOptionsHtml}
+                  </select>
+                ` : '<span class="text-muted small">Timer Off</span>'}
+              </div>
+            </td>
+            <td>
+              <select class="form-select form-select-sm border-secondary-subtle"
                 onchange="onMassLaunchScreenRotationChange('${id}', this.value)">
                 ${rotationOptionsHtml}
               </select>
@@ -834,13 +1288,7 @@
       }
 
       pairedScreenIds.forEach((id) => {
-        const s = appState.screenDataCache[id] || {};
-        if (!massLaunchStagingCache[id]) {
-          massLaunchStagingCache[id] = {
-            playlistId: s.currentPlaylist || "",
-            rotation: s.rotation !== undefined ? s.rotation : 0
-          };
-        }
+        initStagingObject(id);
       });
 
       const statusTextEl = document.getElementById("massLaunchStatusText");
@@ -883,15 +1331,26 @@
 
           const staged = massLaunchStagingCache[id];
           const playlistId = staged !== undefined ? staged.playlistId : (s.currentPlaylist || "");
+          const afterPlaylistId = staged !== undefined ? staged.afterTimerPlaylistId : (s.afterTimerPlaylist || "");
+          const timerEnabled = staged !== undefined ? staged.timerEnabled : (s.timerEnabled === true);
+          const timerStart = staged !== undefined ? staged.timerStart : (s.timerStart || "09:00 AM");
+          const timerEnd = staged !== undefined ? staged.timerEnd : (s.timerEnd || "05:00 PM");
           const rotation = staged !== undefined ? staged.rotation : (s.rotation !== undefined ? s.rotation : 0);
 
           const playlistObj = playlists.find(p => p.id === playlistId);
-          const playlistName = playlistObj ? playlistObj.name : "None (Clear Playlist)";
+          const playlistName = playlistObj ? playlistObj.name : "None (Clear)";
+
+          const afterObj = playlists.find(p => p.id === afterPlaylistId);
+          const afterName = afterObj ? afterObj.name : "None";
+
+          const scheduleText = timerEnabled ? `${timerStart} - ${timerEnd}` : "Disabled";
 
           return `
             <tr>
               <td class="fw-semibold text-dark">${name}</td>
               <td><span class="badge bg-light text-dark border">${playlistName}</span></td>
+              <td><span class="badge bg-amber-subtle text-dark border">${afterName}</span></td>
+              <td><span class="badge bg-info-subtle text-dark border">${scheduleText}</span></td>
               <td><span class="badge bg-secondary-subtle text-dark border">${rotation}°</span></td>
             </tr>
           `;
@@ -940,10 +1399,18 @@
           const staged = massLaunchStagingCache[screenId];
 
           const playlistId = staged ? staged.playlistId : (s ? s.currentPlaylist : null);
+          const afterPlaylistId = staged ? staged.afterTimerPlaylistId : (s ? s.afterTimerPlaylist : null);
+          const timerEnabled = staged ? staged.timerEnabled : (s && s.timerEnabled === true);
+          const timerStart = staged ? staged.timerStart : (s && s.timerStart ? s.timerStart : "09:00 AM");
+          const timerEnd = staged ? staged.timerEnd : (s && s.timerEnd ? s.timerEnd : "05:00 PM");
           const rotation = staged ? staged.rotation : (s && s.rotation !== undefined ? s.rotation : 0);
 
           const update = {
             currentPlaylist: playlistId || null,
+            afterTimerPlaylist: afterPlaylistId || null,
+            timerEnabled: timerEnabled,
+            timerStart: timerStart,
+            timerEnd: timerEnd,
             rotation: rotation
           };
 
@@ -998,6 +1465,8 @@
 
     return {
       addScreen,
+      openAddScreenModal,
+      closeAddScreenModal,
       watchScreens,
       renderScreenRow,
       filterScreensByStatus,
@@ -1007,15 +1476,27 @@
       onLayoutModeChange,
       onLayoutChange: onLayoutModeChange,
       onPlaylistChange,
+      onAfterPlaylistChange,
       onBottomWebUrlChange,
       onSplitRatioChange,
       onRotationChange,
+      openScreenTimerModal,
+      closeScreenTimerModal,
+      toggleModalTimerInputs,
+      updateModalTimerPreview,
+      addTimerSlot,
+      removeTimerSlot,
+      saveScreenTimerModal,
       pushChanges,
       removeScreen,
       populateMassLaunchPlaylists,
       updateMassLaunchTargetCount,
       renderMassLaunchTvOverviewTable,
       onMassLaunchScreenPlaylistChange,
+      onMassLaunchScreenAfterPlaylistChange,
+      onMassLaunchScreenTimerToggle,
+      onMassLaunchScreenTimerStartChange,
+      onMassLaunchScreenTimerEndChange,
       onMassLaunchScreenRotationChange,
       saveMassLaunchConfig,
       closeMassLaunchModal,

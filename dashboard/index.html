@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Bhimavaram Digitals Dashboard</title>
+<title>Bhimavaram Digitals — Dashboard</title>
+<meta name="description" content="Bhimavaram Digitals digital signage management dashboard. Control screens, playlists, timers and live view." />
 
 <!-- Bootstrap 5 -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -49,51 +50,57 @@
       </button>
       <span class="fw-bold text-primary-brand">Bhimavaram Digitals</span>
     </div>
-    <div class="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <div class="sidebarOverlay" onclick="closeSidebar()"></div>
 
     <div class="app-wrapper">
 
       <!-- Sidebar -->
-      <aside class="sidebar d-flex flex-column">
-        <div class="px-3 pt-3 pb-4">
-          <div class="d-flex align-items-center gap-2 mb-1">
-            <div class="brand-mark-sm bg-white p-0.5 border shadow-sm overflow-hidden" style="width:auto; height:32px; border-radius:6px;">
-              <img src="logo.png" alt="Bhimavaram Digitals Logo" style="height:100%; width:auto; object-fit:contain;" />
+      <aside class="sidebar d-flex flex-column" id="mainSidebar">
+
+        <!-- Sidebar header with toggle -->
+        <div class="sidebar-header">
+          <div class="d-flex align-items-center gap-2 sidebar-brand">
+            <div class="brand-mark-sm bg-white border shadow-sm overflow-hidden flex-shrink-0" style="width:32px; height:32px; border-radius:6px;">
+              <img src="logo.png" alt="Logo" style="height:100%; width:auto; object-fit:contain;" />
             </div>
-            <span class="fw-bold text-primary-brand">Bhimavaram Digitals</span>
+            <div class="sidebar-brand-text">
+              <div class="fw-bold text-primary-brand" style="font-size:13.5px; line-height:1.2;">Bhimavaram Digitals</div>
+              <div class="text-muted brand-sub">Management Pro</div>
+            </div>
           </div>
-          <div class="text-muted brand-sub ps-1">Management Pro</div>
+          <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle sidebar">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
         </div>
 
-        <nav class="px-2 flex-grow-1">
-          <button class="navBtn" onclick="switchView('screensView', this)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><rect x="1" y="2" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 13h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 11v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-            Screens
+        <nav class="px-2 flex-grow-1 sidebar-nav">
+          <button class="navBtn" onclick="switchView('screensView', this)" title="Screens">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><rect x="1" y="2" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 13h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 11v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            <span class="nav-label">Screens</span>
           </button>
-          <button class="navBtn" onclick="switchView('groupsView', this)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>
-            Groups
+          <button class="navBtn" onclick="switchView('groupsView', this)" title="Groups">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>
+            <span class="nav-label">Groups</span>
           </button>
-          <button class="navBtn" onclick="switchView('playlistsView', this)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="13" cy="11" r="2.3" stroke="currentColor" stroke-width="1.3"/></svg>
-            Playlists
+          <button class="navBtn" onclick="switchView('playlistsView', this)" title="Playlists">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="13" cy="11" r="2.3" stroke="currentColor" stroke-width="1.3"/></svg>
+            <span class="nav-label">Playlists</span>
           </button>
-          <button class="navBtn" onclick="switchView('analyticsView', this)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><path d="M2 14V2M2 14h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><rect x="4.5" y="8" width="2" height="4" fill="currentColor"/><rect x="8" y="5" width="2" height="7" fill="currentColor"/><rect x="11.5" y="10" width="2" height="2" fill="currentColor"/></svg>
-            Analytics
+          <button class="navBtn" id="liveWallNavBtn" onclick="switchView('liveWallView', this)" title="Live View">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><rect x="1" y="2" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 13h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 11v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="6.5" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span class="nav-label">Live View</span>
           </button>
-          <button class="navBtn" id="liveWallNavBtn" onclick="switchView('liveWallView', this)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><rect x="1" y="2" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 13h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 11v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="6.5" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
-            Live View
-          </button>
-          <button class="navBtn" id="massLaunchNavBtn" onclick="switchView('massLaunchView', this)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="me-2"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 10.5v-7z" stroke="currentColor" stroke-width="1.4"/><path d="M6 14h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 12v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><polygon points="6,5.5 11,8.5 6,11.5" fill="currentColor"/></svg>
-            Mass Launch
+          <button class="navBtn" id="massLaunchNavBtn" onclick="switchView('massLaunchView', this)" title="Mass Launch">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 10.5v-7z" stroke="currentColor" stroke-width="1.4"/><path d="M6 14h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 12v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><polygon points="6,5.5 11,8.5 6,11.5" fill="currentColor"/></svg>
+            <span class="nav-label">Mass Launch</span>
           </button>
         </nav>
 
         <div class="px-2 pb-3">
-          <button class="secondary signOutBtn w-100 text-start" onclick="logout()">Sign out</button>
+          <button class="signOutBtn w-100 text-start" onclick="logout()" title="Sign out">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="nav-icon flex-shrink-0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span class="nav-label">Sign out</span>
+          </button>
         </div>
       </aside>
 
@@ -102,30 +109,82 @@
 
         <!-- SCREENS -->
         <section id="screensView" class="view active">
-          <div class="pageHeader d-flex justify-content-between align-items-end flex-wrap gap-2">
+          <div class="pageHeader d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
             <div>
-              <h1>Screens</h1>
-              <div class="sub">Manage connected digital signage screens. Changes only take effect after you press Push on that row.</div>
+              <h1 class="mb-1">Screens</h1>
+              <div class="sub">Manage connected digital signage screens and timer schedules. Press Push on a row to deploy changes.</div>
             </div>
-            <span class="status-total-pill">
-              <span class="dot offline"></span>
-              <span id="screenCount">0 screens</span>
-            </span>
+            <div class="d-flex align-items-center gap-2">
+              <span class="status-total-pill">
+                <span class="dot offline"></span>
+                <span id="screenCount">0 screens</span>
+              </span>
+              <button type="button" class="btn btn-primary-brand d-inline-flex align-items-center gap-2 px-3 py-2 shadow-sm" onclick="openAddScreenModal()">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Pair New Screen
+              </button>
+            </div>
           </div>
 
-          <div class="card">
-            <h2><span class="icon-badge me-2">＋</span>Add a screen</h2>
-            <div class="row g-3 align-items-end">
-              <div class="col-md">
-                <label class="form-label small">Pairing code</label>
-                <input id="pairCode" class="form-control text-uppercase" placeholder="e.g. K7QX2M" />
+          <!-- INTERACTIVE STAT CARDS -->
+          <div class="row g-3 mb-4" id="screenStatCards">
+            <!-- Total Screens -->
+            <div class="col-md-4">
+              <div class="stat-card stat-card-total cursor-pointer active-filter" data-filter="all" onclick="filterScreensByStatus('all')">
+                <div class="stat-card-glow stat-card-glow-slate"></div>
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                  <div class="stat-card-icon-wrap stat-icon-slate">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="2" y="3" width="20" height="14" rx="2"/>
+                      <path d="M8 21h8M12 17v4"/>
+                    </svg>
+                  </div>
+                  <span class="stat-card-badge stat-badge-slate">All</span>
+                </div>
+                <div class="stat-card-value" id="statTotalScreens">0</div>
+                <div class="stat-card-title">Total Screens</div>
+                <div class="stat-card-sub text-muted">Click to view all paired TVs</div>
+                <div class="stat-card-bar"><div class="stat-card-bar-fill stat-bar-slate" style="width:100%"></div></div>
               </div>
-              <div class="col-md">
-                <label class="form-label small">Screen name</label>
-                <input id="pairName" class="form-control" placeholder="e.g. Mall Entrance" />
+            </div>
+            <!-- Online Screens -->
+            <div class="col-md-4">
+              <div class="stat-card stat-card-online cursor-pointer" data-filter="online" onclick="filterScreensByStatus('online')">
+                <div class="stat-card-glow stat-card-glow-green"></div>
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                  <div class="stat-card-icon-wrap stat-icon-green">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                  </div>
+                  <span class="stat-card-badge stat-badge-green">
+                    <span class="stat-live-dot"></span> Live
+                  </span>
+                </div>
+                <div class="stat-card-value stat-value-green" id="statOnlineScreens">0</div>
+                <div class="stat-card-title">Online Screens</div>
+                <div class="stat-card-sub">Active &amp; broadcasting</div>
+                <div class="stat-card-bar"><div class="stat-card-bar-fill stat-bar-green" style="width:0%" id="statOnlineBar"></div></div>
               </div>
-              <div class="col-md-auto">
-                <button class="btn btn-primary-brand" onclick="addScreen()">Pair screen</button>
+            </div>
+            <!-- Offline Screens -->
+            <div class="col-md-4">
+              <div class="stat-card stat-card-offline cursor-pointer" data-filter="offline" onclick="filterScreensByStatus('offline')">
+                <div class="stat-card-glow stat-card-glow-amber"></div>
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                  <div class="stat-card-icon-wrap stat-icon-amber">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                  </div>
+                  <span class="stat-card-badge stat-badge-amber">Alert</span>
+                </div>
+                <div class="stat-card-value stat-value-amber" id="statOfflineScreens">0</div>
+                <div class="stat-card-title">Offline Screens</div>
+                <div class="stat-card-sub">Disconnected / unreachable</div>
+                <div class="stat-card-bar"><div class="stat-card-bar-fill stat-bar-amber" style="width:0%" id="statOfflineBar"></div></div>
               </div>
             </div>
           </div>
@@ -134,24 +193,22 @@
             <div class="card-table-header d-flex justify-content-between align-items-center flex-wrap gap-2">
               <h2 class="mb-0">All screens</h2>
               <div class="status-filter-group d-flex gap-1">
-                <button class="filter-pill active" onclick="filterScreensByStatus('all', this)">All</button>
-                <button class="filter-pill" onclick="filterScreensByStatus('online', this)">Online</button>
-                <button class="filter-pill" onclick="filterScreensByStatus('offline', this)">Offline</button>
+                <button class="filter-pill active" data-filter="all" onclick="filterScreensByStatus('all', this)">All</button>
+                <button class="filter-pill" data-filter="online" onclick="filterScreensByStatus('online', this)">Online</button>
+                <button class="filter-pill" data-filter="offline" onclick="filterScreensByStatus('offline', this)">Offline</button>
               </div>
             </div>
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0">
                 <thead>
                   <tr>
-                    <th>Status</th>
-                    <th>Name</th>
-                    <th>Layout</th>
-                    <th>Top Playlist</th>
-                    <th>Bottom URL</th>
-                    <th>Split %</th>
-                    <th>Rotation</th>
-                    <th>Last seen</th>
-                    <th class="text-end">Actions</th>
+                    <th style="width: 90px;">Status</th>
+                    <th style="width: 160px;">Name</th>
+                    <th style="width: 170px;">Playlist</th>
+                    <th style="width: 190px;">Timer Slots</th>
+                    <th style="width: 170px;">Layout &amp; Rotation</th>
+                    <th style="width: 120px;">Last seen</th>
+                    <th class="text-end" style="width: 170px;">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="screensBody"></tbody>
@@ -160,11 +217,196 @@
           </div>
         </section>
 
+        <!-- ADD / PAIR SCREEN MODAL -->
+        <div id="addScreenModal" class="modal-overlay" style="display: none;">
+          <div class="modal-card">
+            <div class="d-flex justify-content-between align-items-center pb-3 border-bottom mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <span class="fs-4">📺</span>
+                <h3 class="h5 fw-bold mb-0 text-dark">Pair New Digital Signage Screen</h3>
+              </div>
+              <button type="button" class="btn-close" onclick="closeAddScreenModal()"></button>
+            </div>
+            <div class="modal-body py-2">
+              <div class="alert alert-info py-2 small mb-3">
+                💡 Enter the 6-character pairing code displayed on your TV app to link it to your dashboard.
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold text-secondary">Pairing Code (6 characters)</label>
+                <input id="pairCode" class="form-control text-uppercase fw-bold" placeholder="e.g. K7QX2M" maxlength="8" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold text-secondary">Screen Name / Location</label>
+                <input id="pairName" class="form-control" placeholder="e.g. Reception TV, Mall Entrance" />
+              </div>
+            </div>
+            <div class="modal-footer pt-3 mt-3 border-top d-flex justify-content-end gap-2">
+              <button class="btn btn-light border px-3" onclick="closeAddScreenModal()">Cancel</button>
+              <button class="btn btn-primary-brand px-4 py-2" onclick="addScreen()">Pair Screen</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MULTI-SLOT SCREEN TIMER MODAL -->
+        <div id="screenTimerModal" class="modal-overlay" style="display: none;">
+          <div class="modal-card timer-modal-card">
+            <!-- Header -->
+            <div class="timer-modal-header">
+              <div class="d-flex align-items-center gap-2">
+                <div class="timer-modal-icon">⏰</div>
+                <div>
+                  <h3 class="h5 fw-bold mb-0" id="timerModalTitle">Timer Schedule</h3>
+                  <div class="timer-modal-sub">Applies every day until you change it</div>
+                </div>
+              </div>
+              <button type="button" class="btn-close" onclick="closeScreenTimerModal()"></button>
+            </div>
+
+            <div class="modal-body py-0">
+              <input type="hidden" id="modalTimerScreenId" value="" />
+
+              <!-- Enable toggle -->
+              <div class="timer-enable-row">
+                <label class="timer-enable-label" for="modalTimerEnabled">
+                  <div class="timer-enable-text">
+                    <span class="fw-semibold">Enable Timer Schedule</span>
+                    <span class="timer-enable-desc">Screen follows the time slots below every day</span>
+                  </div>
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input cursor-pointer" type="checkbox" id="modalTimerEnabled"
+                      onchange="toggleModalTimerInputs(this.checked)" style="width:2.5em; height:1.3em;" />
+                  </div>
+                </label>
+              </div>
+
+              <!-- Slots area -->
+              <div id="modalTimerOptionsGroup" class="timer-slots-area">
+                <div class="timer-slots-header">
+                  <div class="timer-slots-title">Time Slots</div>
+                  <div class="timer-slots-hint">Each slot plays a different playlist during its time window</div>
+                </div>
+
+                <!-- Slot rows rendered by JS -->
+                <div id="timerSlotsContainer" class="timer-slots-container"></div>
+
+                <!-- Add slot button -->
+                <button type="button" class="btn-add-slot" onclick="addTimerSlot()">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M7 4v6M4 7h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  Add Time Slot
+                </button>
+
+                <!-- Live preview -->
+                <div class="timer-preview-box">
+                  <div class="timer-preview-label">📋 Today's Schedule Preview</div>
+                  <div id="modalTimerPreviewText" class="timer-preview-content">
+                    Configure slots above to see preview.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer pt-3 mt-3 border-top d-flex justify-content-end gap-2">
+              <button class="btn btn-light border px-3" onclick="closeScreenTimerModal()">Cancel</button>
+              <button class="btn btn-primary-brand px-4 py-2" onclick="saveScreenTimerModal()">
+                Save &amp; Queue Push
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- GROUP SETTINGS & TIMER CONFIG MODAL -->
+        <div id="groupSettingsModal" class="modal-overlay" style="display: none;">
+          <div class="modal-card" style="max-width: 580px;">
+            <div class="d-flex justify-content-between align-items-center pb-3 border-bottom mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <span class="fs-4">⚙️</span>
+                <h3 class="h5 fw-bold mb-0 text-dark" id="groupSettingsTitle">Configure Group Settings &amp; Timer</h3>
+              </div>
+              <button type="button" class="btn-close" onclick="closeGroupSettingsModal()"></button>
+            </div>
+            <div class="modal-body py-2">
+              <input type="hidden" id="modalGroupId" value="" />
+
+              <div class="row g-3 mb-3">
+                <div class="col-6">
+                  <label class="form-label small fw-semibold text-secondary">Timer Playlist (During Clock)</label>
+                  <select id="modalGroupPlaylist" class="form-select form-select-sm"></select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold text-secondary">After-Timer Playlist (Completed)</label>
+                  <select id="modalGroupAfterPlaylist" class="form-select form-select-sm"></select>
+                </div>
+              </div>
+
+              <div class="p-3 bg-light rounded border mb-3">
+                <div class="form-check form-switch mb-2">
+                  <input class="form-check-input cursor-pointer" type="checkbox" id="modalGroupTimerEnabled" onchange="toggleModalGroupTimerInputs(this.checked)" />
+                  <label class="form-check-label fw-bold text-dark cursor-pointer" for="modalGroupTimerEnabled">
+                    Enable Scheduled 12-Hour Clock Timer
+                  </label>
+                </div>
+                <div id="modalGroupTimerOptionsGroup" class="row g-3">
+                  <div class="col-6">
+                    <label class="form-label small fw-semibold text-secondary">Start Time</label>
+                    <select id="modalGroupTimerStart" class="form-select form-select-sm clock-select"></select>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small fw-semibold text-secondary">End Time</label>
+                    <select id="modalGroupTimerEnd" class="form-select form-select-sm clock-select"></select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-6">
+                  <label class="form-label small fw-semibold text-secondary">Layout Mode</label>
+                  <select id="modalGroupLayoutMode" class="form-select form-select-sm" onchange="toggleModalGroupSplitInputs(this.value)">
+                    <option value="single">Single</option>
+                    <option value="split">Split</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold text-secondary">Rotation</label>
+                  <select id="modalGroupRotation" class="form-select form-select-sm">
+                    <option value="0">0° (Landscape)</option>
+                    <option value="90">90° (Portrait R)</option>
+                    <option value="180">180° (Inverted)</option>
+                    <option value="270">270° (Portrait L)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="modalGroupSplitOptions" class="p-3 bg-light rounded border mb-3" style="display:none">
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold text-secondary">Bottom Strip Web URL</label>
+                  <input type="text" id="modalGroupBottomWebUrl" class="form-control form-control-sm" placeholder="https://..." />
+                </div>
+                <div>
+                  <label class="form-label small fw-semibold text-secondary">Bottom Split Ratio %</label>
+                  <select id="modalGroupSplitRatio" class="form-select form-select-sm">
+                    <option value="10">10% bottom</option>
+                    <option value="20" selected>20% bottom</option>
+                    <option value="30">30% bottom</option>
+                    <option value="40">40% bottom</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer pt-3 mt-3 border-top d-flex justify-content-end gap-2">
+              <button class="btn btn-light border px-3" onclick="closeGroupSettingsModal()">Cancel</button>
+              <button class="btn btn-primary-brand px-4 py-2" onclick="saveGroupSettingsModal()">
+                Save &amp; Push Group Settings
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- GROUPS -->
         <section id="groupsView" class="view">
           <div class="pageHeader">
             <h1>Screen Groups</h1>
-            <div class="sub">Group multiple screens together to configure playlists, layouts, and rotations across all screens at once.</div>
+            <div class="sub">Group multiple screens together to configure playlists, layouts, rotations, and automatic clock schedules across all screens at once.</div>
           </div>
 
           <div class="card p-0 overflow-hidden">
@@ -175,14 +417,9 @@
               <table class="table table-hover align-middle mb-0">
                 <thead>
                   <tr>
-                    <th>Group</th>
-                    <th>Screens</th>
-                    <th>Layout</th>
-                    <th>Top Playlist</th>
-                    <th>Bottom URL</th>
-                    <th>Split %</th>
-                    <th>Rotation</th>
-                    <th class="text-end">Actions</th>
+                    <th style="width: 180px;">Group Name</th>
+                    <th>Member Screens &amp; Playlist Status</th>
+                    <th class="text-end" style="width: 320px;">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="groupsBody"></tbody>
@@ -250,54 +487,6 @@
           </div>
         </section>
 
-        <!-- ANALYTICS -->
-        <section id="analyticsView" class="view">
-          <div class="pageHeader">
-            <h1>Analytics</h1>
-            <div class="sub">Ad playtime by screen and day</div>
-          </div>
-
-          <div class="card">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label small">Screen</label>
-                <select id="analyticsScreenFilter" class="form-select" onchange="loadAnalytics()">
-                  <option value="">All screens</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small">Date</label>
-                <input type="date" id="analyticsDateFilter" class="form-control" onchange="loadAnalytics()" />
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <h2>Total playtime</h2>
-            <div class="analytics-total" id="analyticsTotal">—</div>
-          </div>
-
-          <div class="card p-0 overflow-hidden" id="analyticsByScreenCard" style="display:none">
-            <div class="card-table-header"><h2 class="mb-0">By screen</h2></div>
-            <div class="table-responsive">
-              <table class="table mb-0">
-                <thead><tr><th>Screen</th><th>Ads played</th><th>Total playtime</th></tr></thead>
-                <tbody id="analyticsByScreenBody"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="card p-0 overflow-hidden">
-            <div class="card-table-header"><h2 class="mb-0">By ad</h2></div>
-            <div class="table-responsive">
-              <table class="table mb-0">
-                <thead><tr><th>Type</th><th>Media URL</th><th>Plays</th><th>Total playtime</th></tr></thead>
-                <tbody id="analyticsByAdBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
         <!-- LIVE WALL -->
         <section id="liveWallView" class="view">
           <div class="pageHeader d-flex justify-content-between align-items-end flex-wrap gap-2">
@@ -318,18 +507,17 @@
 
         <!-- MASS LAUNCH & BROADCAST PAGE -->
         <section id="massLaunchView" class="view">
-          <!-- PAGE HEADER WITH LAUNCH ALL BUTTON -->
           <div class="pageHeader d-flex justify-content-between align-items-center flex-wrap gap-3 pb-3 border-bottom mb-4">
             <div>
               <div class="d-flex align-items-center gap-2">
-                <h1 class="h3 fw-bold text-dark mb-0">Mass Launch & Broadcast</h1>
+                <h1 class="h3 fw-bold text-dark mb-0">Mass Launch &amp; Broadcast</h1>
                 <span id="massLaunchTargetCount" class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-bold">0 TVs</span>
               </div>
               <div class="text-muted small mt-1">Assign playlist and rotation for each TV below, then click Launch All.</div>
             </div>
 
             <div class="d-flex align-items-center gap-2">
-              <button id="massSaveBtn" class="btn btn-outline-primary px-3 py-2.5 d-flex align-items-center gap-2 fw-semibold" onclick="saveMassLaunchConfig()">
+              <button id="massSaveBtn" class="btn btn-outline-primary px-3 py-2 d-flex align-items-center gap-2 fw-semibold" onclick="saveMassLaunchConfig()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                   <polyline points="17 21 17 13 7 13 7 21"/>
@@ -338,7 +526,7 @@
                 <span>Save Config</span>
               </button>
 
-              <button id="massLaunchBtn" class="btn btn-launch-all px-4 py-2.5 d-flex align-items-center gap-2 fw-bold text-uppercase fs-6" onclick="launchToAllScreens()">
+              <button id="massLaunchBtn" class="btn btn-launch-all px-4 py-2 d-flex align-items-center gap-2 fw-bold text-uppercase fs-6" onclick="launchToAllScreens()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71 1.1-1.6 1.4-2.5L4.5 16.5z"/>
                   <path d="M12 15l-3-3 7.5-7.5c.78-.78 2.05-.78 2.83 0l.67.67c.78.78.78 2.05 0 2.83L12 15z"/>
@@ -348,7 +536,6 @@
             </div>
           </div>
 
-          <!-- TARGET TV LIST TABLE CARD -->
           <div class="card p-0 overflow-hidden shadow-sm border mb-4">
             <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
               <h2 class="mb-0 h6 fw-bold text-dark">Paired TVs Setup</h2>
@@ -358,10 +545,12 @@
               <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                   <tr>
-                    <th style="width: 140px;">Status</th>
-                    <th style="min-width: 180px;">TV Name</th>
-                    <th style="min-width: 260px;">Assigned Playlist</th>
-                    <th style="min-width: 200px;">Screen Rotation</th>
+                    <th style="width: 120px;">Status</th>
+                    <th style="min-width: 150px;">TV Name</th>
+                    <th style="min-width: 200px;">Timer Playlist (During Clock)</th>
+                    <th style="min-width: 200px;">After-Timer Playlist (Completed)</th>
+                    <th style="min-width: 220px;">Clock Schedule</th>
+                    <th style="min-width: 160px;">Screen Rotation</th>
                   </tr>
                 </thead>
                 <tbody id="massLaunchTvOverviewBody"></tbody>
@@ -371,7 +560,7 @@
 
           <!-- SECURE MASS LAUNCH CONFIRMATION MODAL -->
           <div id="massLaunchConfirmModal" class="modal-overlay" style="display: none;">
-            <div class="modal-card">
+            <div class="modal-card" style="max-width: 680px;">
               <div class="d-flex justify-content-between align-items-center pb-3 border-bottom mb-3">
                 <div class="d-flex align-items-center gap-2">
                   <span class="fs-4">🚀</span>
@@ -383,12 +572,14 @@
                 <p class="text-secondary small mb-3">
                   Are you sure you want to broadcast assigned configurations to <strong id="modalScreenCount">0 TVs</strong>?
                 </p>
-                <div class="table-responsive border rounded mb-3" style="max-height: 200px;">
-                  <table class="table table-sm table-striped align-middle mb-0" style="font-size: 13px;">
+                <div class="table-responsive border rounded mb-3" style="max-height: 250px;">
+                  <table class="table table-sm table-striped align-middle mb-0" style="font-size: 12px;">
                     <thead class="table-light">
                       <tr>
                         <th>TV Name</th>
-                        <th>Playlist</th>
+                        <th>Timer Playlist</th>
+                        <th>After-Timer Playlist</th>
+                        <th>Clock Schedule</th>
                         <th>Rotation</th>
                       </tr>
                     </thead>
@@ -403,7 +594,7 @@
               <div class="modal-footer pt-3 mt-3 border-top d-flex justify-content-end gap-2">
                 <button class="btn btn-light border px-3" onclick="closeMassLaunchModal()">Cancel</button>
                 <button id="modalConfirmLaunchBtn" class="btn btn-launch-all px-4 py-2 fw-bold text-uppercase" onclick="executeMassLaunch()">
-                  🚀 Confirm & Broadcast Now
+                  🚀 Confirm &amp; Broadcast Now
                 </button>
               </div>
             </div>
@@ -415,16 +606,42 @@
   </div>
 
   <script>
-    // Mobile off-canvas sidebar — UI-only behavior, doesn't touch any
-    // app.js function or state. Safe to keep here even if app.js changes.
-    function toggleSidebar() {
-      document.querySelector(".sidebar").classList.toggle("sidebarOpen");
-      document.querySelector(".sidebarOverlay").classList.toggle("show");
+    function openSidebar() {
+      const sb = document.getElementById('mainSidebar');
+      const ov = document.querySelector('.sidebarOverlay');
+      if (sb) sb.classList.remove('sidebar-collapsed');
+      // On mobile restore position
+      if (window.innerWidth < 768) {
+        if (sb) sb.classList.add('sidebarOpen');
+        if (ov) ov.classList.add('show');
+      }
     }
-    document.addEventListener("DOMContentLoaded", () => {
-      document.querySelectorAll(".navBtn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          if (window.innerWidth < 768) toggleSidebar();
+    function closeSidebar() {
+      const sb = document.getElementById('mainSidebar');
+      const ov = document.querySelector('.sidebarOverlay');
+      if (window.innerWidth < 768) {
+        if (sb) sb.classList.remove('sidebarOpen');
+        if (ov) ov.classList.remove('show');
+      }
+    }
+    function toggleSidebar() {
+      const sb = document.getElementById('mainSidebar');
+      if (!sb) return;
+      if (window.innerWidth < 768) {
+        // Mobile: slide in/out
+        const isOpen = sb.classList.contains('sidebarOpen');
+        const ov = document.querySelector('.sidebarOverlay');
+        sb.classList.toggle('sidebarOpen', !isOpen);
+        if (ov) ov.classList.toggle('show', !isOpen);
+      } else {
+        // Desktop: collapse to icons
+        sb.classList.toggle('sidebar-collapsed');
+      }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.navBtn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (window.innerWidth < 768) closeSidebar();
         });
       });
     });
@@ -443,10 +660,10 @@
   <script src="modules/groups.js"></script>
   <script src="modules/r2upload.js"></script>
   <script src="modules/playlists.js"></script>
-  <script src="modules/analytics.js"></script>
   <script src="modules/preview.js"></script>
   <script src="modules/liveview.js"></script>
   <script src="modules/livewall.js"></script>
   <script src="app.js"></script>
+
 </body>
 </html>

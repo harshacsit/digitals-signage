@@ -32,15 +32,41 @@
         return;
       }
 
-      container.innerHTML = appState.playlistsCache.map((p) => `
-        <tr>
-          <td><span class="fw-medium">${p.name}</span></td>
-          <td><span class="badge bg-secondary-subtle text-dark border px-2 py-1">${(p.items || []).length} items</span></td>
-          <td class="text-end">
-            <button class="secondary me-1" onclick="editPlaylist('${p.id}')">Edit</button>
-            <button class="secondary danger" onclick="deletePlaylist('${p.id}')">Delete</button>
-          </td>
-        </tr>`).join("");
+      container.innerHTML = appState.playlistsCache.map((p) => {
+        const items = p.items || [];
+        const visibleItems = items.slice(0, 4);
+        let itemBadges = visibleItems.map(i => {
+          let rawName = i.name || i.label;
+          if (!rawName && i.url) {
+            try { rawName = decodeURIComponent(i.url.split('/').pop().split('?')[0]); } catch (e) { rawName = i.url.split('/').pop().split('?')[0]; }
+          }
+          if (!rawName) rawName = 'Unnamed Media';
+          // Clean leading Unix timestamp prefixes (e.g. 1789365581324_)
+          let cleanName = rawName.replace(/^\d{10,14}_/, '');
+          if (cleanName.length > 22) {
+            cleanName = cleanName.substring(0, 19) + '...';
+          }
+          const typeIcon = i.type === 'video' ? '🎬' : (i.type === 'web' ? '🌐' : '📷');
+          return `<span class="badge bg-light text-dark border me-1 mb-1 fw-medium" title="${i.name || i.url || ''}">${typeIcon} ${cleanName}</span>`;
+        }).join('');
+
+        if (items.length > 4) {
+          itemBadges += ` <span class="badge bg-secondary-subtle text-secondary border mb-1">+${items.length - 4} more</span>`;
+        }
+
+        return `
+          <tr>
+            <td>
+              <div class="fw-bold text-dark fs-6 mb-1">${p.name}</div>
+              <div class="d-flex flex-wrap gap-1 align-items-center">${itemBadges || '<span class="text-muted small">No items</span>'}</div>
+            </td>
+            <td><span class="badge bg-secondary-subtle text-dark border px-2 py-1">${items.length} item${items.length === 1 ? '' : 's'}</span></td>
+            <td class="text-end">
+              <button class="secondary me-1" onclick="editPlaylist('${p.id}')">Edit</button>
+              <button class="secondary danger" onclick="deletePlaylist('${p.id}')">Delete</button>
+            </td>
+          </tr>`;
+      }).join("");
     }
 
     function editPlaylist(id) {
@@ -73,25 +99,47 @@
 
       // Unique ID so the hidden file input and its button can be linked per-row
       const uid = "r2_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+      const safeName = (data.name || data.label || "").replace(/"/g, "&quot;");
 
       row.innerHTML = `
-        <select class="itemType">
-          <option value="image" ${data.type !== "video" && data.type !== "web" ? "selected" : ""}>📷 Image</option>
-          <option value="video" ${data.type === "video" ? "selected" : ""}>🎬 Video</option>
-          <option value="web" ${data.type === "web" ? "selected" : ""}>🌐 Web Page / YouTube</option>
-        </select>
-
-        <!-- URL input + Upload button side-by-side -->
-        <div class="r2-url-group">
-          <input class="itemUrl" placeholder="Paste a URL  —OR—  pick a file →" value="${data.url || ""}" />
-          <button class="btn-upload-file" type="button" title="Pick a file from your computer and upload it to cloud storage">
-            📁 Upload File
-          </button>
-          <!-- Hidden file picker (accepts images & videos from any drive) -->
-          <input type="file" id="${uid}" class="r2-file-input" accept="video/*,image/*" style="display:none" />
+        <!-- Move Up / Move Down Buttons -->
+        <div class="item-field-wrap field-order">
+          <label class="item-field-label text-center">Order</label>
+          <div class="item-order-btns">
+            <button type="button" class="btn-order btn-order-up" title="Move Item Up">▲</button>
+            <button type="button" class="btn-order btn-order-down" title="Move Item Down">▼</button>
+          </div>
         </div>
 
-        <!-- Upload progress bar (hidden until an upload starts) -->
+        <!-- Media / Ad Name Field -->
+        <div class="item-field-wrap field-name">
+          <label class="item-field-label">Media Name</label>
+          <input class="itemName" placeholder="e.g. Special Offer Banner" value="${safeName}" />
+        </div>
+
+        <!-- Media Type Select -->
+        <div class="item-field-wrap field-type">
+          <label class="item-field-label">Type</label>
+          <select class="itemType">
+            <option value="image" ${data.type !== "video" && data.type !== "web" ? "selected" : ""}>📷 Image</option>
+            <option value="video" ${data.type === "video" ? "selected" : ""}>🎬 Video</option>
+            <option value="web" ${data.type === "web" ? "selected" : ""}>🌐 Web / YT</option>
+          </select>
+        </div>
+
+        <!-- URL input + Upload button -->
+        <div class="item-field-wrap field-url">
+          <label class="item-field-label">Media URL / Cloud File</label>
+          <div class="r2-url-input-group">
+            <input class="itemUrl" placeholder="Paste a URL —OR— pick a file →" value="${data.url || ""}" />
+            <button class="btn-upload-file" type="button" title="Pick a file from your computer and upload it to cloud storage">
+              📁 Upload File
+            </button>
+            <input type="file" id="${uid}" class="r2-file-input" accept="video/*,image/*" style="display:none" />
+          </div>
+        </div>
+
+        <!-- Upload progress bar -->
         <div class="r2-progress-wrap" style="display:none; width:100%; margin-top:4px;">
           <div class="r2-progress-bar">
             <div class="r2-progress-fill" style="width:0%"></div>
@@ -99,36 +147,81 @@
           <span class="r2-progress-label">0%</span>
         </div>
 
-        <div class="d-flex align-items-center gap-1">
-          <input class="itemDuration" type="number" placeholder="Sec" value="${data.durationSeconds || 8}" style="width:75px" />
-          <span class="small text-muted">sec</span>
+        <!-- Duration Seconds -->
+        <div class="item-field-wrap field-duration">
+          <label class="item-field-label">Duration</label>
+          <div class="d-flex align-items-center gap-1">
+            <input class="itemDuration" type="number" placeholder="Sec" value="${data.durationSeconds || 8}" />
+            <span class="small text-muted fw-semibold">s</span>
+          </div>
         </div>
-        <select class="itemResizeMode">
-          <option value="fit">Fit (bars)</option>
-          <option value="fill">Fill (crop)</option>
-          <option value="stretch">Stretch</option>
-        </select>
-        <select class="itemRotation">
-          <option value="0" ${(data.rotation || 0) === 0 ? "selected" : ""}>0°</option>
-          <option value="90" ${data.rotation === 90 ? "selected" : ""}>90°</option>
-          <option value="180" ${data.rotation === 180 ? "selected" : ""}>180°</option>
-          <option value="270" ${data.rotation === 270 ? "selected" : ""}>270°</option>
-        </select>
 
-        <label class="small text-muted d-flex align-items-center gap-1">
-          <input type="checkbox" class="itemIsLive" ${data.isLive ? "checked" : ""} />
-          Live
-        </label>
+        <!-- Resize Mode -->
+        <div class="item-field-wrap field-resize">
+          <label class="item-field-label">Resize</label>
+          <select class="itemResizeMode">
+            <option value="fit" ${(data.resizeMode || "fit") === "fit" ? "selected" : ""}>Fit (bars)</option>
+            <option value="fill" ${data.resizeMode === "fill" ? "selected" : ""}>Fill (crop)</option>
+            <option value="stretch" ${data.resizeMode === "stretch" ? "selected" : ""}>Stretch</option>
+          </select>
+        </div>
 
-        <button class="btn-remove ms-auto" onclick="this.parentElement.remove()" title="Remove item">✕</button>
+        <!-- Rotation -->
+        <div class="item-field-wrap field-rotation">
+          <label class="item-field-label">Rotation</label>
+          <select class="itemRotation">
+            <option value="0" ${(data.rotation || 0) === 0 ? "selected" : ""}>0°</option>
+            <option value="90" ${data.rotation === 90 ? "selected" : ""}>90°</option>
+            <option value="180" ${data.rotation === 180 ? "selected" : ""}>180°</option>
+            <option value="270" ${data.rotation === 270 ? "selected" : ""}>270°</option>
+          </select>
+        </div>
+
+        <!-- Live Checkbox -->
+        <div class="item-field-wrap field-live">
+          <label class="item-field-label">&nbsp;</label>
+          <label class="small text-dark fw-semibold d-flex align-items-center gap-1 cursor-pointer mb-0">
+            <input type="checkbox" class="itemIsLive" ${data.isLive ? "checked" : ""} />
+            Live
+          </label>
+        </div>
+
+        <!-- Remove Button -->
+        <div class="item-field-wrap field-action ms-auto">
+          <label class="item-field-label">&nbsp;</label>
+          <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()" title="Remove item">✕</button>
+        </div>
       `;
 
       container.appendChild(row);
+
+      // ── Wire up Move Up & Move Down reordering buttons ─────────────────────
+      const btnUp = row.querySelector(".btn-order-up");
+      const btnDown = row.querySelector(".btn-order-down");
+
+      if (btnUp) {
+        btnUp.addEventListener("click", function () {
+          const prev = row.previousElementSibling;
+          if (prev && prev.classList.contains("item-row")) {
+            row.parentNode.insertBefore(row, prev);
+          }
+        });
+      }
+
+      if (btnDown) {
+        btnDown.addEventListener("click", function () {
+          const next = row.nextElementSibling;
+          if (next && next.classList.contains("item-row")) {
+            row.parentNode.insertBefore(next, row);
+          }
+        });
+      }
 
       // ── Wire up the upload button for this row ──────────────────────────────
       const fileInput   = row.querySelector("#" + uid);
       const uploadBtn   = row.querySelector(".btn-upload-file");
       const urlInput    = row.querySelector(".itemUrl");
+      const nameInput   = row.querySelector(".itemName");
       const typeSelect  = row.querySelector(".itemType");
       const progressWrap = row.querySelector(".r2-progress-wrap");
       const progressFill = row.querySelector(".r2-progress-fill");
@@ -143,6 +236,11 @@
       fileInput.addEventListener("change", function () {
         const file = fileInput.files && fileInput.files[0];
         if (!file) return;
+
+        // Auto-fill Media Name if empty
+        if (nameInput && !nameInput.value.trim()) {
+          nameInput.value = file.name;
+        }
 
         // Auto-select type based on MIME
         if (file.type.startsWith("video/")) {
@@ -213,6 +311,7 @@
       }
 
       const items = Array.from(rows).map((row) => ({
+        name: row.querySelector(".itemName") ? row.querySelector(".itemName").value.trim() : "",
         type: row.querySelector(".itemType").value,
         url: row.querySelector(".itemUrl").value.trim(),
         durationSeconds: parseInt(row.querySelector(".itemDuration").value, 10) || 8,

@@ -1,11 +1,9 @@
 (function () {
-  const { initializeFirebase, switchView: _switchView, createAuthManager, createScreensModule, createPlaylistsModule, createAnalyticsModule, createPreviewModule, createGroupsModule, createLiveViewModule, createLiveWallModule } = window.AppModules;
+  const { initializeFirebase, switchView: _switchView, createAuthManager, createScreensModule, createPlaylistsModule, createGroupsModule, createLiveViewModule, createLiveWallModule } = window.AppModules;
 
   const { auth, db } = initializeFirebase();
   const screens = createScreensModule({ db });
   const playlists = createPlaylistsModule({ db });
-  const analytics = createAnalyticsModule({ db });
-  const preview = createPreviewModule({ db });
   const groups = createGroupsModule({ db });
   const liveview = createLiveViewModule ? createLiveViewModule() : null;
   const liveWall = createLiveWallModule ? createLiveWallModule({ db }) : null;
@@ -28,8 +26,6 @@
       screens.watchScreens();
       playlists.watchPlaylists();
       groups.watchGroups();
-      analytics.initAnalyticsFilters();
-      analytics.loadAnalytics();
     }
   });
 
@@ -37,17 +33,25 @@
   window.login = authManager.login;
   window.logout = authManager.logout;
   window.addScreen = screens.addScreen;
+  window.openAddScreenModal = screens.openAddScreenModal;
+  window.closeAddScreenModal = screens.closeAddScreenModal;
   window.startRename = screens.startRename;
   window.cancelRename = screens.cancelRename;
   window.saveRename = screens.saveRename;
   window.onPlaylistChange = screens.onPlaylistChange;
+  window.onAfterPlaylistChange = screens.onAfterPlaylistChange;
   window.onRotationChange = screens.onRotationChange;
   window.onLayoutChange = screens.onLayoutChange;
   window.onLayoutModeChange = screens.onLayoutModeChange;
-  // ===== CHANGED: was window.onBottomPlaylistChange = screens.onBottomPlaylistChange
-  // (that function no longer exists — the bottom zone is a URL field now, not a playlist)
   window.onBottomWebUrlChange = screens.onBottomWebUrlChange;
   window.onSplitRatioChange = screens.onSplitRatioChange;
+  window.openScreenTimerModal = screens.openScreenTimerModal;
+  window.closeScreenTimerModal = screens.closeScreenTimerModal;
+  window.toggleModalTimerInputs = screens.toggleModalTimerInputs;
+  window.updateModalTimerPreview = screens.updateModalTimerPreview;
+  window.addTimerSlot = screens.addTimerSlot;
+  window.removeTimerSlot = screens.removeTimerSlot;
+  window.saveScreenTimerModal = screens.saveScreenTimerModal;
   window.pushChanges = screens.pushChanges;
   window.removeScreen = screens.removeScreen;
   window.filterScreensByStatus = screens.filterScreensByStatus;
@@ -55,6 +59,10 @@
   window.updateMassLaunchTargetCount = screens.updateMassLaunchTargetCount;
   window.renderMassLaunchTvOverviewTable = screens.renderMassLaunchTvOverviewTable;
   window.onMassLaunchScreenPlaylistChange = screens.onMassLaunchScreenPlaylistChange;
+  window.onMassLaunchScreenAfterPlaylistChange = screens.onMassLaunchScreenAfterPlaylistChange;
+  window.onMassLaunchScreenTimerToggle = screens.onMassLaunchScreenTimerToggle;
+  window.onMassLaunchScreenTimerStartChange = screens.onMassLaunchScreenTimerStartChange;
+  window.onMassLaunchScreenTimerEndChange = screens.onMassLaunchScreenTimerEndChange;
   window.onMassLaunchScreenRotationChange = screens.onMassLaunchScreenRotationChange;
   window.saveMassLaunchConfig = screens.saveMassLaunchConfig;
   window.closeMassLaunchModal = screens.closeMassLaunchModal;
@@ -64,9 +72,8 @@
   window.deletePlaylist = playlists.deletePlaylist;
   window.addPlaylistItemRow = playlists.addPlaylistItemRow;
   window.savePlaylist = playlists.savePlaylist;
-  window.loadAnalytics = analytics.loadAnalytics;
-  window.populateAnalyticsScreenOptions = analytics.populateAnalyticsScreenOptions;
-  window.openPreview = preview.open;
+  const preview = window.AppModules.createPreviewModule ? window.AppModules.createPreviewModule({ db }) : null;
+  if (preview) window.openPreview = preview.open;
   if (liveview) {
     window.openLiveView = liveview.openLiveView;
     window.closeLiveView = liveview.closeLiveView;
@@ -79,9 +86,17 @@
   window.deleteGroup = groups.deleteGroup;
   window.toggleSelectAllGroupScreens = groups.toggleSelectAllGroupScreens;
   window.applyGroupSettings = groups.applyGroupSettings;
+  window.openGroupSettingsModal = groups.openGroupSettingsModal;
+  window.closeGroupSettingsModal = groups.closeGroupSettingsModal;
+  window.saveGroupSettingsModal = groups.saveGroupSettingsModal;
+  window.toggleModalGroupTimerInputs = groups.toggleModalGroupTimerInputs;
+  window.toggleModalGroupSplitInputs = groups.toggleModalGroupSplitInputs;
   window.onGroupLayoutChange = groups.onGroupLayoutChange;
   window.onGroupPlaylistChange = groups.onGroupPlaylistChange;
-  // ===== CHANGED: was window.onGroupBottomPlaylistChange = groups.onGroupBottomPlaylistChange
+  window.onGroupAfterPlaylistChange = groups.onGroupAfterPlaylistChange;
+  window.onGroupTimerToggle = groups.onGroupTimerToggle;
+  window.onGroupTimerStartChange = groups.onGroupTimerStartChange;
+  window.onGroupTimerEndChange = groups.onGroupTimerEndChange;
   window.onGroupBottomWebUrlChange = groups.onGroupBottomWebUrlChange;
   window.onGroupSplitRatioChange = groups.onGroupSplitRatioChange;
   window.onGroupRotationChange = groups.onGroupRotationChange;
