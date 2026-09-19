@@ -427,6 +427,15 @@
     }
 
     function saveScheduleForScreen(screenId) {
+      // Check if logged in (required by Firestore rules: request.auth != null && request.auth.token.email != null)
+      const currentUser = window.firebase && window.firebase.auth ? window.firebase.auth().currentUser : null;
+      if (!currentUser) {
+        const msg = "You must be signed in as admin to save schedule settings.";
+        if (AppModules.showToast) AppModules.showToast(msg, "error");
+        else alert(msg);
+        return;
+      }
+
       const s = appState.screenDataCache[screenId] || {};
       const card = document.getElementById(`schedCard_${screenId}`);
       const toggle = card ? card.querySelector(`#schedToggle_${screenId}`) : null;
@@ -454,7 +463,7 @@
         }
       }
 
-      // Sanitize slots payload to prevent undefined fields causing Firestore permission/validation errors
+      // Sanitize slots payload to prevent undefined fields
       const cleanSlots = slots.map(sl => ({
         start: String(sl.start || '09:00'),
         end: String(sl.end || '17:00'),
@@ -483,14 +492,11 @@
         })
         .catch(err => {
           console.error('Failed saving schedule:', err);
-          const isPermissionErr = err.code === 'permission-denied' || (err.message && err.message.toLowerCase().includes('permission'));
-          const msg = isPermissionErr
-            ? 'Permission denied — please check that you are signed into the dashboard, or update your Firebase Console Firestore Rules to allow writing `schedulerEnabled` and `schedulerSlots` fields.'
-            : `Failed saving schedule: ${err.message}`;
+          const rawMsg = err.message || err.code || String(err);
           if (AppModules.showToast) {
-            AppModules.showToast(msg, 'error');
+            AppModules.showToast(`Save failed: ${rawMsg}`, 'error');
           } else {
-            alert(msg);
+            alert(`Save failed: ${rawMsg}`);
           }
         });
     }
