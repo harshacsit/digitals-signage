@@ -19,9 +19,83 @@
     let h = parseInt(parts[0], 10);
     const m = parts[1] || '00';
     const period = h >= 12 ? 'PM' : 'AM';
-    if (h === 0) h = 12;
-    else if (h > 12) h -= 12;
-    return `${String(h).padStart(2, '0')}:${m} ${period}`;
+    if (h === 0) h = 12;       // 00:xx → 12:xx AM (midnight)
+    else if (h > 12) h -= 12; // 13–23 → 1–11 PM
+    // h=12 stays 12 PM (noon)
+    return `${h}:${m} ${period}`;
+  }
+
+  function normalizeHhmmTime(str) {
+    if (!str) return '';
+    str = str.trim();
+
+    // Support plain digits e.g. "0911", "911", "1430"
+    if (/^\d{3,4}$/.test(str)) {
+      if (str.length === 3) str = '0' + str;
+      const h = parseInt(str.slice(0, 2), 10);
+      const m = parseInt(str.slice(2, 4), 10);
+      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      }
+    }
+
+    // Support colon format e.g. "9:11" or "09:11"
+    const match = str.match(/^(\d{1,2}):(\d{1,2})$/);
+    if (match) {
+      let h = parseInt(match[1], 10);
+      let m = parseInt(match[2], 10);
+      if (!isNaN(h) && h >= 0 && h <= 23 && !isNaN(m) && m >= 0 && m <= 59) {
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      }
+    }
+
+    return str;
+  }
+
+  function buildSchedTimeOptions(currentValue) {
+    const am = [];
+    const pm = [];
+    for (let h = 0; h < 24; h++) {
+      const hh = String(h).padStart(2, '0');
+      ['00', '15', '30', '45'].forEach(mm => {
+        const t = `${hh}:${mm}`;
+        const isSel = (t === currentValue) ? 'selected' : '';
+        const lbl = `${hhmm24To12h(t)} (${t})`;
+        if (h < 12) am.push(`<option value="${t}" ${isSel}>${lbl}</option>`);
+        else pm.push(`<option value="${t}" ${isSel}>${lbl}</option>`);
+      });
+    }
+    return `
+      <option value="">Quick pick ▼</option>
+      <optgroup label="Morning (AM)">
+        ${am.join('')}
+      </optgroup>
+      <optgroup label="Afternoon &amp; Evening (PM)">
+        ${pm.join('')}
+      </optgroup>
+    `;
+  }
+
+  // Generate all 15-min interval times in HH:MM 24h format
+  const SCHED_TIMES = (function () {
+    const times = [];
+    for (let h = 0; h < 24; h++) {
+      times.push(`${String(h).padStart(2, '0')}:00`);
+      times.push(`${String(h).padStart(2, '0')}:15`);
+      times.push(`${String(h).padStart(2, '0')}:30`);
+      times.push(`${String(h).padStart(2, '0')}:45`);
+    }
+    return times;
+  })();
+
+  // Shared <datalist> HTML injected once into the page for time suggestions
+  const SCHED_DATALIST_ID = 'schedTimeSuggestions';
+  function ensureSchedDatalist() {
+    if (document.getElementById(SCHED_DATALIST_ID)) return;
+    const dl = document.createElement('datalist');
+    dl.id = SCHED_DATALIST_ID;
+    dl.innerHTML = SCHED_TIMES.map(t => `<option value="${t}">${hhmm24To12h(t)}</option>`).join('');
+    document.body.appendChild(dl);
   }
 
   function getActiveSchedulerSlot(slots) {
@@ -44,10 +118,12 @@
     return null;
   }
 
+
   AppModules.createSchedulerModule = function createSchedulerModule({ db }) {
     let refreshTimer = null;
 
     function initSchedulerView() {
+      ensureSchedDatalist(); // Inject shared time suggestions datalist once
       if (!refreshTimer) {
         refreshTimer = setInterval(updateSchedulerStatusChips, 30000);
       }
@@ -65,10 +141,12 @@
       if (pairedScreenIds.length === 0) {
         container.innerHTML = `
           <div class="col-12">
-            <div class="card p-5 text-center text-muted shadow-sm border-0">
-              <div class="fs-1 mb-2">📺</div>
-              <h3 class="h5 fw-bold text-dark mb-1">No Paired Screens Found</h3>
-              <p class="mb-0 text-secondary">Pair your digital signage screens on the <strong>Screens</strong> tab first to configure 24/7 auto-scheduling.</p>
+            <div class="card p-5 text-center text-muted shadow-sm border">
+              <div class="empty-illustration">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              </div>
+              <h3 class="h5 fw-bold text-dark mb-1">No paired screens</h3>
+              <p class="mb-0 text-secondary">Pair screens on the Screens tab to configure auto-scheduling.</p>
             </div>
           </div>
         `;
@@ -93,6 +171,8 @@
       const activePlaylist = activeSlot ? playlists.find(p => p.id === activeSlot.playlistId) : null;
 
       const slotsHtml = slots.map((sl, idx) => {
+        const slStart = sl.start || '09:00';
+        const slEnd = sl.end || '17:00';
         const playlistOptions = playlists.map(p =>
           `<option value="${p.id}" ${p.id === sl.playlistId ? 'selected' : ''}>${p.name}</option>`
         ).join('');
@@ -103,11 +183,37 @@
           <div class="sched-slot-row ${isSlotActive ? 'is-active-slot' : ''}" data-screen-id="${screenId}" data-idx="${idx}">
             <div class="sched-slot-number">${idx + 1}</div>
             <div class="sched-time-wrap">
-              <input type="time" class="sched-time-input sched-start" value="${sl.start || '09:00'}"
-                onchange="window.onSchedulerTimeChange('${screenId}')" />
+              <div class="sched-time-field">
+                <label class="sched-time-label">Start</label>
+                <div class="sched-time-input-group">
+                  <select class="sched-time-select" onchange="window.onSchedSelectPick(this, '${screenId}')" title="Quick pick standard time">
+                    ${buildSchedTimeOptions(slStart)}
+                  </select>
+                  <input type="text" class="sched-time-input sched-start"
+                    value="${slStart}"
+                    placeholder="09:11"
+                    maxlength="5"
+                    title="Type exact time e.g. 09:11"
+                    onblur="window.onSchedInputBlur(this, '${screenId}')"
+                    oninput="window.onSchedulerTimeChange('${screenId}')" />
+                </div>
+              </div>
               <span class="sched-time-arrow">→</span>
-              <input type="time" class="sched-time-input sched-end" value="${sl.end || '17:00'}"
-                onchange="window.onSchedulerTimeChange('${screenId}')" />
+              <div class="sched-time-field">
+                <label class="sched-time-label">End</label>
+                <div class="sched-time-input-group">
+                  <select class="sched-time-select" onchange="window.onSchedSelectPick(this, '${screenId}')" title="Quick pick standard time">
+                    ${buildSchedTimeOptions(slEnd)}
+                  </select>
+                  <input type="text" class="sched-time-input sched-end"
+                    value="${slEnd}"
+                    placeholder="12:00"
+                    maxlength="5"
+                    title="Type exact time e.g. 17:30"
+                    onblur="window.onSchedInputBlur(this, '${screenId}')"
+                    oninput="window.onSchedulerTimeChange('${screenId}')" />
+                </div>
+              </div>
             </div>
             <div class="sched-playlist-wrap">
               <select class="sched-playlist-select" onchange="window.onSchedulerTimeChange('${screenId}')">
@@ -122,21 +228,22 @@
         `;
       }).join('');
 
+
       let statusChipHtml = '';
       if (!enabled) {
-        statusChipHtml = `<div class="sched-status-chip is-off">⛔ Auto-Scheduler Disabled — Screen plays assigned playlist continuously</div>`;
+        statusChipHtml = `<div class="sched-status-chip is-off">Scheduler off — this screen keeps its assigned playlist.</div>`;
       } else if (activeSlot) {
         const plName = activePlaylist ? activePlaylist.name : 'Unknown Playlist';
         statusChipHtml = `
           <div class="sched-status-chip is-active">
             <span class="sched-live-pulse"></span>
-            <strong>▶ NOW PLAYING:</strong> ${plName} (${hhmm24To12h(activeSlot.start)} – ${hhmm24To12h(activeSlot.end)})
+            <strong>Now playing:</strong> ${plName} (${hhmm24To12h(activeSlot.start)} – ${hhmm24To12h(activeSlot.end)})
           </div>
         `;
       } else if (slots.length > 0) {
-        statusChipHtml = `<div class="sched-status-chip is-waiting">⏰ ${slots.length} time slot(s) scheduled — Waiting for next active slot</div>`;
+        statusChipHtml = `<div class="sched-status-chip is-waiting">${slots.length} time slot(s) scheduled — waiting for the next window.</div>`;
       } else {
-        statusChipHtml = `<div class="sched-status-chip is-empty">⚠️ Scheduler enabled but no time slots added yet. Click "+ Add Time Slot".</div>`;
+        statusChipHtml = `<div class="sched-status-chip is-empty">Scheduler is on but has no time slots. Add a time slot to continue.</div>`;
       }
 
       return `
@@ -145,7 +252,9 @@
             <!-- Card Header -->
             <div class="sched-card-header d-flex align-items-center justify-content-between p-3 border-bottom">
               <div class="d-flex align-items-center gap-2">
-                <span class="fs-4">📺</span>
+                <span class="sched-screen-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                </span>
                 <div>
                   <h3 class="h6 fw-bold mb-0 text-dark">${screenName}</h3>
                   <div class="small text-muted">Screen ID: <code>${screenId}</code></div>
@@ -175,7 +284,7 @@
 
               <!-- Slots Container -->
               <div class="sched-slots-container mb-3 ${enabled ? '' : 'opacity-50 pointer-events-none'}" id="schedSlots_${screenId}">
-                ${slots.length > 0 ? slotsHtml : `<div class="sched-slots-empty">No time slots added. Click "+ Add Time Slot" above.</div>`}
+                ${slots.length > 0 ? slotsHtml : `<div class="sched-slots-empty">No time slots yet. Use Add time slot above.</div>`}
               </div>
 
               <!-- Status Chip -->
@@ -187,11 +296,11 @@
             <!-- Card Footer -->
             <div class="sched-card-footer p-3 border-top bg-light d-flex align-items-center justify-content-between">
               <div class="small text-muted">
-                ${hasPending ? '<span class="badge bg-warning text-dark">Unsaved Changes</span>' : '<span class="text-success small">✓ Up to date</span>'}
+                ${hasPending ? '<span class="badge bg-warning text-dark">Unsaved changes</span>' : '<span class="text-success small">Up to date</span>'}
               </div>
               <button type="button" class="btn btn-primary-brand px-3 py-1.5 small fw-semibold shadow-sm"
                 onclick="window.saveScheduleForScreen('${screenId}')">
-                💾 Save Schedule
+                Save schedule
               </button>
             </div>
           </div>
@@ -205,6 +314,7 @@
       const rows = card.querySelectorAll('.sched-slot-row');
       const slots = [];
       rows.forEach(row => {
+        // Works for both <select> and legacy <input type="time">
         const start = row.querySelector('.sched-start')?.value || '';
         const end = row.querySelector('.sched-end')?.value || '';
         const playlistId = row.querySelector('.sched-playlist-select')?.value || '';
@@ -227,8 +337,11 @@
         schedulerSlots: slots
       };
 
-      // Refresh footer pending status badge
-      renderScreenSchedulerCardUI(screenId);
+      // Update footer pending badge directly — DO NOT re-render card to avoid unmounting focused input
+      const footerBadge = card.querySelector('.sched-card-footer .small.text-muted');
+      if (footerBadge) {
+        footerBadge.innerHTML = '<span class="badge bg-warning text-dark">Unsaved changes</span>';
+      }
     }
 
     function toggleSchedulerForScreen(screenId, enabled) {
@@ -320,15 +433,43 @@
       const enabled = toggle ? toggle.checked : false;
       const slots = readSlotsFromCard(screenId);
 
+      // Validate slot times format HH:MM
+      for (let i = 0; i < slots.length; i++) {
+        const slot = slots[i];
+        slot.start = normalizeHhmmTime(slot.start);
+        slot.end = normalizeHhmmTime(slot.end);
+
+        if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(slot.start)) {
+          if (AppModules.showToast) {
+            AppModules.showToast(`Slot #${i + 1} has invalid start time "${slot.start}". Please use HH:MM format like 09:11 or pick from dropdown.`, 'error');
+          } else alert(`Slot #${i + 1} invalid start time "${slot.start}"`);
+          return;
+        }
+
+        if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(slot.end)) {
+          if (AppModules.showToast) {
+            AppModules.showToast(`Slot #${i + 1} has invalid end time "${slot.end}". Please use HH:MM format like 17:30 or pick from dropdown.`, 'error');
+          } else alert(`Slot #${i + 1} invalid end time "${slot.end}"`);
+          return;
+        }
+      }
+
+      // Sanitize slots payload to prevent undefined fields causing Firestore permission/validation errors
+      const cleanSlots = slots.map(sl => ({
+        start: String(sl.start || '09:00'),
+        end: String(sl.end || '17:00'),
+        playlistId: String(sl.playlistId || '')
+      }));
+
       // Evaluate active slot right now to auto-push if active
-      const activeSlot = enabled ? getActiveSchedulerSlot(slots) : null;
+      const activeSlot = enabled ? getActiveSchedulerSlot(cleanSlots) : null;
       const updateData = {
-        schedulerEnabled: enabled,
-        schedulerSlots: slots
+        schedulerEnabled: Boolean(enabled),
+        schedulerSlots: cleanSlots
       };
 
       if (activeSlot && activeSlot.playlistId) {
-        updateData.currentPlaylist = activeSlot.playlistId;
+        updateData.currentPlaylist = String(activeSlot.playlistId);
       }
 
       db.collection('screens').doc(screenId).update(updateData)
@@ -336,16 +477,20 @@
           delete appState.pendingSchedulerChanges[screenId];
           const screenName = s.name || screenId;
           if (AppModules.showToast) {
-            AppModules.showToast(`📅 Auto-Scheduler saved for "${screenName}"! 24/7 backend pushing enabled.`, 'success');
+            AppModules.showToast(`Scheduler saved for "${screenName}". Cloud auto-push is active.`, 'success');
           }
           renderScreenSchedulerCardUI(screenId);
         })
         .catch(err => {
           console.error('Failed saving schedule:', err);
+          const isPermissionErr = err.code === 'permission-denied' || (err.message && err.message.toLowerCase().includes('permission'));
+          const msg = isPermissionErr
+            ? 'Permission denied — please check that you are signed into the dashboard, or update your Firebase Console Firestore Rules to allow writing `schedulerEnabled` and `schedulerSlots` fields.'
+            : `Failed saving schedule: ${err.message}`;
           if (AppModules.showToast) {
-            AppModules.showToast(`Failed saving schedule: ${err.message}`, 'error');
+            AppModules.showToast(msg, 'error');
           } else {
-            alert(`Failed saving schedule: ${err.message}`);
+            alert(msg);
           }
         });
     }
@@ -360,6 +505,35 @@
     window.removeSchedulerSlot = removeSchedulerSlot;
     window.saveScheduleForScreen = saveScheduleForScreen;
     window.onSchedulerTimeChange = onSchedulerTimeChange;
+
+    window.onSchedSelectPick = function (selectElem, screenId) {
+      if (!selectElem) return;
+      const val = selectElem.value;
+      if (!val) return;
+      const group = selectElem.closest('.sched-time-input-group');
+      if (!group) return;
+      const input = group.querySelector('.sched-time-input');
+      if (input) {
+        input.value = val;
+        onSchedulerTimeChange(screenId);
+      }
+    };
+
+    window.onSchedInputBlur = function (inputElem, screenId) {
+      if (!inputElem) return;
+      const normalized = normalizeHhmmTime(inputElem.value);
+      if (normalized !== inputElem.value) {
+        inputElem.value = normalized;
+        onSchedulerTimeChange(screenId);
+      }
+      const group = inputElem.closest('.sched-time-input-group');
+      if (group) {
+        const select = group.querySelector('.sched-time-select');
+        if (select) {
+          select.value = normalized || '';
+        }
+      }
+    };
 
     return {
       initSchedulerView,

@@ -3,7 +3,7 @@
   const appState = window.AppState;
 
   // 12-hour clock time options for group timer selects
-  const CLOCK_TIMES_12H = (function () {
+  const CLOCK_TIMES_12H = AppModules.CLOCK_TIMES_12H || (function () {
     const times = [];
     for (let h = 0; h < 24; h++) {
       for (let m = 0; m < 60; m += 30) {
@@ -190,7 +190,7 @@
       const clockTimes = AppModules.CLOCK_TIMES_12H || [];
 
       if (appState.groupsCache.length === 0) {
-        container.innerHTML = `<tr><td colspan="10" class="text-muted text-center py-4">No screen groups created yet. Create one above to manage multiple screens at once!</td></tr>`;
+        container.innerHTML = `<tr><td colspan="3" class="text-muted text-center py-4">No screen groups yet. Create one below to manage multiple screens together.</td></tr>`;
         return;
       }
 
@@ -214,9 +214,9 @@
 
           let statusDetail = "";
           if (tState.status === "active") {
-            statusDetail = `<div class="text-success small fw-semibold">🟢 Playing: ${timerPlaylistName} (${tState.timerStart} - ${tState.timerEnd})</div>`;
+            statusDetail = `<div class="text-success small fw-semibold">Playing: ${timerPlaylistName} (${tState.timerStart} - ${tState.timerEnd})</div>`;
           } else if (tState.status === "completed") {
-            statusDetail = `<div class="text-warning small fw-semibold">⏰ Completed -> Auto Playing: ${afterPlaylistName}</div>`;
+            statusDetail = `<div class="text-warning small fw-semibold">Completed, now playing: ${afterPlaylistName}</div>`;
           } else {
             statusDetail = `<div class="text-muted small">Playing: ${timerPlaylistName}</div>`;
           }
@@ -285,10 +285,10 @@
             </td>
             <td class="text-end" style="white-space:nowrap;">
               <div class="group-actions">
-                <button class="btn btn-sm btn-light border" onclick="openGroupSettingsModal('${g.id}')" title="Settings & Timer">⚙️ Settings</button>
-                <button class="btn btn-sm btn-primary-brand" onclick="applyGroupSettings('${g.id}')" ${memberIds.length === 0 ? 'disabled' : ''} title="Push to all screens">🚀 Push</button>
-                <button class="btn btn-sm btn-outline-secondary" onclick="editGroup('${g.id}')" title="Edit group">✏️</button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteGroup('${g.id}')" title="Delete group">🗑️</button>
+                <button class="btn btn-sm btn-light border" onclick="openGroupSettingsModal('${g.id}')" title="Settings and timer">Settings</button>
+                <button class="btn btn-sm btn-primary-brand" onclick="applyGroupSettings('${g.id}')" ${memberIds.length === 0 ? 'disabled' : ''} title="Push to all screens">Push</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="editGroup('${g.id}')" title="Edit group">Edit</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteGroup('${g.id}')" title="Delete group">Delete</button>
               </div>
             </td>
           </tr>
@@ -491,43 +491,58 @@
       const splitRatio = splitRatioSelect ? parseInt(splitRatioSelect.value, 10) : (group.splitRatio || 20);
       const rotation = rotationSelect ? parseInt(rotationSelect.value, 10) : (group.rotation || 0);
 
-      const updateData = {
+      const commonUpdate = {
         layoutMode,
-        currentPlaylist: currentPlaylist || null,
-        afterTimerPlaylist: afterTimerPlaylist || null,
-        timerEnabled,
-        timerStart,
-        timerEnd,
         bottomWebUrl: (layoutMode === "split" && bottomWebUrl) ? bottomWebUrl : null,
         splitRatio: layoutMode === "split" ? splitRatio : 20,
         rotation
       };
 
       const batch = db.batch();
+      let schedSkippedCount = 0;
 
       screenIds.forEach((screenId) => {
+        const screenData = appState.screenDataCache[screenId];
         const screenRef = db.collection("screens").doc(screenId);
-        batch.update(screenRef, updateData);
+        
+        // If Auto-Scheduler is active for this screen, do not force-overwrite its playlist
+        if (screenData?.schedulerEnabled === true) {
+          schedSkippedCount++;
+          batch.update(screenRef, commonUpdate);
+        } else {
+          batch.update(screenRef, {
+            ...commonUpdate,
+            currentPlaylist: currentPlaylist || null
+          });
+        }
       });
 
       const groupRef = db.collection("groups").doc(groupId);
       batch.update(groupRef, {
-        ...updateData,
+        ...commonUpdate,
+        currentPlaylist: currentPlaylist || null,
         lastPushedAt: window.firebase.firestore.FieldValue.serverTimestamp()
       });
 
       batch.commit()
         .then(() => {
           delete groupSettingsCache[groupId];
+          let msg = `Pushed settings to ${screenIds.length} screen${screenIds.length === 1 ? '' : 's'} in '${group.name}'!`;
+          if (schedSkippedCount > 0) {
+            msg += ` (${schedSkippedCount} screen${schedSkippedCount === 1 ? '' : 's'} with Auto-Scheduler active retained scheduled playlists)`;
+          }
           if (AppModules.showToast) {
-            AppModules.showToast(`Pushed playlist, clock timer, and settings to ${screenIds.length} screen${screenIds.length === 1 ? '' : 's'} in '${group.name}'!`, "success");
+            AppModules.showToast(msg, "success");
           } else {
-            alert(`Updated ${screenIds.length} screens in group '${group.name}'.`);
+            alert(msg);
           }
         })
         .catch((err) => {
-          if (AppModules.showToast) AppModules.showToast(`Group push failed: ${err.message}`, "error");
-          else alert(`Group push failed: ${err.message}`);
+          const msg = err.code === "permission-denied"
+            ? "Permission denied — your account does not have permission to push group changes."
+            : `Group push failed: ${err.message}`;
+          if (AppModules.showToast) AppModules.showToast(msg, "error");
+          else alert(msg);
         });
     }
 

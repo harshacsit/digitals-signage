@@ -46,8 +46,9 @@
           if (cleanName.length > 22) {
             cleanName = cleanName.substring(0, 19) + '...';
           }
-          const typeIcon = i.type === 'video' ? '🎬' : (i.type === 'web' ? '🌐' : '📷');
-          return `<span class="badge bg-light text-dark border me-1 mb-1 fw-medium" title="${i.name || i.url || ''}">${typeIcon} ${cleanName}</span>`;
+          const typeLabel = i.type === 'video' ? 'Video' : (i.type === 'web' ? 'Web' : 'Image');
+          const typeClass = i.type === 'video' ? 'is-video' : (i.type === 'web' ? 'is-web' : 'is-image');
+          return `<span class="type-chip ${typeClass}" title="${i.name || i.url || ''}">${typeLabel} · ${cleanName}</span>`;
         }).join('');
 
         if (items.length > 4) {
@@ -62,8 +63,10 @@
             </td>
             <td><span class="badge bg-secondary-subtle text-dark border px-2 py-1">${items.length} item${items.length === 1 ? '' : 's'}</span></td>
             <td class="text-end">
-              <button class="secondary me-1" onclick="editPlaylist('${p.id}')">Edit</button>
-              <button class="secondary danger" onclick="deletePlaylist('${p.id}')">Delete</button>
+              <div class="toolbar-btns">
+                <button class="secondary" onclick="editPlaylist('${p.id}')">Edit</button>
+                <button class="secondary danger" onclick="deletePlaylist('${p.id}')">Delete</button>
+              </div>
             </td>
           </tr>`;
       }).join("");
@@ -121,9 +124,9 @@
         <div class="item-field-wrap field-type">
           <label class="item-field-label">Type</label>
           <select class="itemType">
-            <option value="image" ${data.type !== "video" && data.type !== "web" ? "selected" : ""}>📷 Image</option>
-            <option value="video" ${data.type === "video" ? "selected" : ""}>🎬 Video</option>
-            <option value="web" ${data.type === "web" ? "selected" : ""}>🌐 Web / YT</option>
+            <option value="image" ${data.type !== "video" && data.type !== "web" ? "selected" : ""}>Image</option>
+            <option value="video" ${data.type === "video" ? "selected" : ""}>Video</option>
+            <option value="web" ${data.type === "web" ? "selected" : ""}>Web / YouTube</option>
           </select>
         </div>
 
@@ -133,7 +136,7 @@
           <div class="r2-url-input-group">
             <input class="itemUrl" placeholder="Paste a URL —OR— pick a file →" value="${data.url || ""}" />
             <button class="btn-upload-file" type="button" title="Pick a file from your computer and upload it to cloud storage">
-              📁 Upload File
+              Upload file
             </button>
             <input type="file" id="${uid}" class="r2-file-input" accept="video/*,image/*" style="display:none" />
           </div>
@@ -186,10 +189,13 @@
           </label>
         </div>
 
-        <!-- Remove Button -->
+        <!-- Copy & Remove Buttons -->
         <div class="item-field-wrap field-action ms-auto">
           <label class="item-field-label">&nbsp;</label>
-          <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()" title="Remove item">✕</button>
+          <div class="d-flex gap-1">
+            <button type="button" class="btn-copy-row" title="Copy this media item to a new row below">Copy</button>
+            <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()" title="Remove item">✕</button>
+          </div>
         </div>
       `;
 
@@ -213,6 +219,39 @@
           const next = row.nextElementSibling;
           if (next && next.classList.contains("item-row")) {
             row.parentNode.insertBefore(next, row);
+          }
+        });
+      }
+
+      // ── Wire up the Copy button ────────────────────────────────────────────
+      const btnCopy = row.querySelector(".btn-copy-row");
+      if (btnCopy) {
+        btnCopy.addEventListener("click", function () {
+          // Snapshot all current field values from this row
+          const copyData = {
+            name: row.querySelector(".itemName")?.value.trim() || "",
+            type: row.querySelector(".itemType")?.value || "image",
+            url: row.querySelector(".itemUrl")?.value.trim() || "",
+            durationSeconds: parseInt(row.querySelector(".itemDuration")?.value, 10) || 8,
+            resizeMode: row.querySelector(".itemResizeMode")?.value || "fit",
+            rotation: parseInt(row.querySelector(".itemRotation")?.value, 10) || 0,
+            isLive: row.querySelector(".itemIsLive")?.checked || false
+          };
+
+          // Build the new row using the same addPlaylistItemRow function
+          // We need to insert it right AFTER the current row, not at the end.
+          // Strategy: append to container first, then move it after the current row.
+          addPlaylistItemRow(copyData);
+
+          // Move the newly appended row to be right after the current row
+          const allRows = container.querySelectorAll(".item-row");
+          const newRow = allRows[allRows.length - 1];
+          if (newRow && newRow !== row) {
+            row.after(newRow);
+          }
+
+          if (AppModules.showToast) {
+            AppModules.showToast("Media item copied below.", "info");
           }
         });
       }
@@ -254,7 +293,7 @@
         progressFill.style.width = "0%";
         progressLbl.textContent = "0%";
         uploadBtn.disabled = true;
-        uploadBtn.textContent = "⏳ Uploading…";
+        uploadBtn.textContent = "Uploading…";
         urlInput.disabled = true;
 
         if (!window.R2Upload) {
@@ -289,7 +328,7 @@
 
         function resetControls() {
           uploadBtn.disabled = false;
-          uploadBtn.textContent = "📁 Upload File";
+          uploadBtn.textContent = "Upload file";
           urlInput.disabled = false;
         }
       });

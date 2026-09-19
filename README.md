@@ -79,16 +79,22 @@ Full field-level schema and security rules rationale in
   (this bit the team once with the `analytics` collection; documented as a
   cautionary note in DATA_MODEL.md)
 
+## Feature Specifications & Safeguards
+
+- **24/7 Auto-Scheduler Guard**: When a screen has Auto-Scheduler turned **ON** (`schedulerEnabled: true`), manual playlist pushing on the Screens and Groups tab is locked (`🔒 Auto-Scheduler ON`). To manually push a one-off playlist, operators must first turn Auto-Scheduler **OFF** in the Scheduler tab. Screen layout mode, split ratios, rotation (0°–270°), and bottom web tickers remain pushable at all times.
+- **BGR-to-RGB Live View Color Filter**: WebRTC live streams from TV box hardware encoders are rendered through an SVG `feColorMatrix` transformation filter (`#bgrToRgb`) on `#liveCameraVideo` and `.lw-video` elements to eliminate BGR color distortion (swapped blue and red channels).
+- **Firestore Permission Resilience**: Detailed user-friendly toast messages intercept `permission-denied` and indexing errors across all dashboard modules.
+
 ## Known Limitations
 
-- No pagination — table rendering will degrade past a few hundred screens
-- No bulk playlist assignment across multiple screens yet
+- **Auto-Scheduler Override**: Manual playlist assignment cannot bypass active 24/7 Auto-Scheduler time slots without first toggling Auto-Scheduler OFF for that specific screen.
+- **Table Pagination**: UI table rendering currently processes all paired screens simultaneously; performance may degrade with over 300 active screens.
+- **WebRTC Network Traversal**: Live View requires STUN/TURN traversal. Fallback to Google STUN occurs automatically if custom TURN worker environment parameters are unconfigured.
 
 ## Roadmap
 
 - [ ] Pagination for screens/playlists tables
-- [ ] Bulk playlist assignment
-- [ ] Offline-duration alerting (screens down >10 min)
+- [ ] Offline-duration alerting (screens down >12 min)
 
 ## Team
 

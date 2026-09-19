@@ -15,6 +15,24 @@
 
   const ONLINE_THRESHOLD_MS = 720000; // 12 min (2.4× the 5-min Android heartbeat) — matches backend and all other dashboard modules
 
+  // 12-hour clock time options (30-min intervals) for legacy timer dropdowns
+  const CLOCK_TIMES_12H = (function () {
+    if (AppModules.CLOCK_TIMES_12H) return AppModules.CLOCK_TIMES_12H;
+    const times = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        const period = h >= 12 ? 'PM' : 'AM';
+        let h12 = h % 12;
+        if (h12 === 0) h12 = 12;
+        const hStr = String(h12).padStart(2, '0');
+        const mStr = String(m).padStart(2, '0');
+        times.push(`${hStr}:${mStr} ${period}`);
+      }
+    }
+    return times;
+  })();
+  AppModules.CLOCK_TIMES_12H = CLOCK_TIMES_12H;
+
   // ===== MULTI-SLOT TIMER HELPERS =====
 
   // Convert "HH:MM" (24h) to total minutes from midnight
@@ -92,7 +110,7 @@
         slots,
         activeSlot: null,
         activePlaylistId: s?.currentPlaylist || '',
-        badgeHtml: '<span class="badge-timer-off" title="Click to configure timer slots">⏰ Timer Off</span>'
+        badgeHtml: '<span class="badge-timer-off" title="Click to configure timer slots">Timer off</span>'
       };
     }
 
@@ -107,7 +125,7 @@
         slots,
         activeSlot,
         activePlaylistId: activeSlot.playlistId || '',
-        badgeHtml: `<span class="badge-timer-active" title="Active: ${label}"><span class="pulse-dot-green"></span> ⏱️ ${label}</span>`
+        badgeHtml: `<span class="badge-timer-active" title="Active: ${label}"><span class="pulse-dot-green"></span> ${label}</span>`
       };
     } else {
       return {
@@ -116,7 +134,7 @@
         slots,
         activeSlot: null,
         activePlaylistId: s?.currentPlaylist || '',
-        badgeHtml: `<span class="badge-timer-off" title="${slotCount} slot(s) scheduled, none active now">⏰ ${slotCount} Slot${slotCount > 1 ? 's' : ''}</span>`
+        badgeHtml: `<span class="badge-timer-off" title="${slotCount} slot(s) scheduled, none active now">${slotCount} slot${slotCount > 1 ? 's' : ''}</span>`
       };
     }
   }
@@ -464,7 +482,7 @@
             <input type="text" id="renameInput_${docId}" class="form-control form-control-sm rename-input"
               value="${safeVal}"
               onkeydown="if(event.key==='Enter'){event.preventDefault();saveRename('${docId}');}else if(event.key==='Escape'){event.preventDefault();cancelRename('${docId}');}" />
-            <button type="button" class="btn btn-sm btn-success py-0 px-2" title="Save" onclick="saveRename('${docId}')">✓</button>
+            <button type="button" class="btn btn-sm btn-success py-0 px-2" title="Save" onclick="saveRename('${docId}')">Save</button>
             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Cancel" onclick="cancelRename('${docId}')">✕</button>
           </div>
         `;
@@ -678,11 +696,24 @@
     }
 
     function playlistDropdown(screenId, currentPlaylistId) {
+      const s = appState.screenDataCache[screenId] || {};
+      const isSchedActive = s.schedulerEnabled === true;
       const pending = appState.pendingChanges[screenId]?.playlist;
       const effectiveVal = pending !== undefined ? pending : (currentPlaylistId || "");
       const options = appState.playlistsCache.map((p) =>
         `<option value="${p.id}" ${p.id === effectiveVal ? "selected" : ""}>${p.name}</option>`
       ).join("");
+
+      if (isSchedActive) {
+        return `
+          <div class="d-flex flex-column gap-1">
+            <select class="playlistSelect is-sched-locked" disabled title="Auto-Scheduler is active. Turn off Auto-Scheduler in the Scheduler tab to push a playlist manually.">
+              <option value="" ${effectiveVal === "" ? "selected" : ""}>— none —</option>${options}
+            </select>
+            <div><span class="sched-lock-badge" title="Controlled by Auto-Scheduler">Scheduler on</span></div>
+          </div>
+        `;
+      }
 
       return `<select class="playlistSelect" onchange="onPlaylistChange('${screenId}', this.value)">
         <option value="" ${effectiveVal === "" ? "selected" : ""}>— none —</option>${options}
@@ -790,7 +821,16 @@
     }
 
     function onPlaylistChange(screenId, value) {
-      setPendingField(screenId, "playlist", value, appState.screenDataCache[screenId]?.currentPlaylist || "");
+      const s = appState.screenDataCache[screenId];
+      if (s?.schedulerEnabled === true) {
+        const screenName = s.name || screenId;
+        if (AppModules.showToast) {
+          AppModules.showToast(`Auto-Scheduler is active for "${screenName}". Please turn off Auto-Scheduler in the Scheduler tab to manually push a playlist.`, "warning");
+        }
+        renderScreenRow(screenId, s, true);
+        return;
+      }
+      setPendingField(screenId, "playlist", value, s?.currentPlaylist || "");
     }
 
     function onAfterPlaylistChange(screenId, value) {
@@ -816,16 +856,26 @@
         return;
       }
 
+      const s = appState.screenDataCache[screenId];
+      const screenName = s?.name || screenId;
+
+      if (pending.playlist !== undefined && s?.schedulerEnabled === true) {
+        if (AppModules.showToast) {
+          AppModules.showToast(`Cannot push playlist changes while Auto-Scheduler is active on "${screenName}". Turn off Auto-Scheduler in the Scheduler tab first.`, "warning");
+        }
+        delete pending.playlist;
+        if (Object.keys(pending).length === 0) {
+          renderScreenRow(screenId, s, true);
+          return;
+        }
+      }
+
       const update = {};
       if (pending.layoutMode !== undefined) update.layoutMode = pending.layoutMode;
       if (pending.playlist !== undefined) update.currentPlaylist = pending.playlist || null;
-      if (pending.afterTimerPlaylist !== undefined) update.afterTimerPlaylist = pending.afterTimerPlaylist || null;
       if (pending.bottomWebUrl !== undefined) update.bottomWebUrl = pending.bottomWebUrl || null;
       if (pending.splitRatio !== undefined) update.splitRatio = pending.splitRatio;
       if (pending.rotation !== undefined) update.rotation = pending.rotation;
-
-      const s = appState.screenDataCache[screenId];
-      const screenName = s?.name || screenId;
 
       db.collection("screens").doc(screenId).update(update)
         .then(() => {
@@ -836,10 +886,13 @@
           renderScreenRow(screenId, appState.screenDataCache[screenId]);
         })
         .catch((err) => {
+          const msg = err.code === "permission-denied"
+            ? "Permission denied — your account does not have write access to screens."
+            : `Push failed: ${err.message}`;
           if (AppModules.showToast) {
-            AppModules.showToast(`Push failed: ${err.message}`, "error");
+            AppModules.showToast(msg, "error");
           } else {
-            alert(`Failed to push changes: ${err.message}`);
+            alert(msg);
           }
         });
     }
@@ -1076,12 +1129,12 @@
       const statusTextEl = document.getElementById("massLaunchStatusText");
       if (statusTextEl) {
         statusTextEl.style.display = "block";
-        statusTextEl.textContent = `✓ Mass launch configurations saved for ${pairedScreenIds.length} TVs! Click Launch All to broadcast securely.`;
+        statusTextEl.textContent = `Configuration saved for ${pairedScreenIds.length} TVs. Click Launch all to broadcast.`;
         setTimeout(() => { statusTextEl.style.display = "none"; }, 6000);
       }
 
       if (AppModules.showToast) {
-        AppModules.showToast(`💾 Mass launch configurations saved for ${pairedScreenIds.length} TVs!`, "success");
+        AppModules.showToast(`Mass launch configuration saved for ${pairedScreenIds.length} TVs.`, "success");
       }
     }
 
@@ -1164,11 +1217,11 @@
 
       if (modalBtn) {
         modalBtn.disabled = true;
-        modalBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> BROADCASTING...`;
+        modalBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Broadcasting`;
       }
       if (headerBtn) {
         headerBtn.disabled = true;
-        headerBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> LAUNCHING...`;
+        headerBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Launching`;
       }
 
       try {
@@ -1217,13 +1270,13 @@
         renderMassLaunchTvOverviewTable();
 
         if (AppModules.showToast) {
-          AppModules.showToast(`🚀 Mass Launch Successful! Broadcast sent securely to ${pairedScreenIds.length} TVs!`, "success");
+          AppModules.showToast(`Broadcast sent to ${pairedScreenIds.length} TVs.`, "success");
         }
 
         const statusTextEl = document.getElementById("massLaunchStatusText");
         if (statusTextEl) {
           statusTextEl.style.display = "block";
-          statusTextEl.textContent = `✓ Broadcast securely sent to ${pairedScreenIds.length} TVs!`;
+          statusTextEl.textContent = `Broadcast sent to ${pairedScreenIds.length} TVs.`;
           setTimeout(() => { statusTextEl.style.display = "none"; }, 8000);
         }
       } catch (err) {

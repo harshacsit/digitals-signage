@@ -202,7 +202,7 @@
       if (screens.length === 0) {
         grid.innerHTML =
           '<div class="lw-empty-state">' +
-            '<div class="lw-empty-icon">\uD83D\uDCFA</div>' +
+            '<div class="lw-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>' +
             '<div class="lw-empty-title">No screens paired yet</div>' +
             '<div class="lw-empty-sub">Pair a screen on the Screens tab to see it here.</div>' +
           '</div>';
@@ -215,7 +215,7 @@
       if (warningBanner) {
         warningBanner.style.display = onlineCount > 12 ? "flex" : "none";
         if (onlineCount > 12) {
-          warningBanner.textContent = "\u26A0\uFE0F " + onlineCount + " screens are online. Showing all, but many simultaneous WebRTC streams may impact browser performance.";
+          warningBanner.textContent = onlineCount + " screens are online. Showing all, but many simultaneous streams may slow the browser.";
         }
       }
 
