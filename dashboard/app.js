@@ -1,5 +1,5 @@
 (function () {
-  const { initializeFirebase, switchView: _switchView, createAuthManager, createScreensModule, createPlaylistsModule, createGroupsModule, createLiveViewModule, createLiveWallModule } = window.AppModules;
+  const { initializeFirebase, switchView: _switchView, createAuthManager, createScreensModule, createPlaylistsModule, createGroupsModule, createLiveViewModule, createLiveWallModule, createSchedulerModule } = window.AppModules;
 
   const { auth, db } = initializeFirebase();
   const screens = createScreensModule({ db });
@@ -7,6 +7,7 @@
   const groups = createGroupsModule({ db });
   const liveview = createLiveViewModule ? createLiveViewModule() : null;
   const liveWall = createLiveWallModule ? createLiveWallModule({ db }) : null;
+  const scheduler = createSchedulerModule ? createSchedulerModule({ db }) : null;
 
   // Wrap switchView so we mount/unmount Live Wall automatically
   let _currentView = '';
@@ -19,6 +20,9 @@
     if (viewId === 'liveWallView' && liveWall) {
       liveWall.mount();
     }
+    if (viewId === 'schedulerView' && scheduler) {
+      scheduler.renderSchedulerView();
+    }
   }
 
   const authManager = createAuthManager(auth, (user) => {
@@ -26,6 +30,7 @@
       screens.watchScreens();
       playlists.watchPlaylists();
       groups.watchGroups();
+      if (scheduler) scheduler.watchScheduler();
     }
   });
 
@@ -45,13 +50,6 @@
   window.onLayoutModeChange = screens.onLayoutModeChange;
   window.onBottomWebUrlChange = screens.onBottomWebUrlChange;
   window.onSplitRatioChange = screens.onSplitRatioChange;
-  window.openScreenTimerModal = screens.openScreenTimerModal;
-  window.closeScreenTimerModal = screens.closeScreenTimerModal;
-  window.toggleModalTimerInputs = screens.toggleModalTimerInputs;
-  window.updateModalTimerPreview = screens.updateModalTimerPreview;
-  window.addTimerSlot = screens.addTimerSlot;
-  window.removeTimerSlot = screens.removeTimerSlot;
-  window.saveScreenTimerModal = screens.saveScreenTimerModal;
   window.pushChanges = screens.pushChanges;
   window.removeScreen = screens.removeScreen;
   window.filterScreensByStatus = screens.filterScreensByStatus;

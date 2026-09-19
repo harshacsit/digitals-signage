@@ -124,12 +124,80 @@ console.log("🚀 Firebase-Telegram Monitor Bot Started!");
 checkScreens(); // Initial check
 setInterval(checkScreens, CHECK_INTERVAL_MS);
 
+// 4. 24/7 Auto-Scheduler Backend Loop
+// Checks every 1 minute so playlist switches happen precisely on schedule in IST timezone
+const SCHEDULER_CHECK_INTERVAL_MS = 60 * 1000;
+
+function hhmmToMins(str) {
+  if (!str) return -1;
+  const parts = str.split(':');
+  if (parts.length < 2) return -1;
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+
+function getISTMinutesFromMidnight() {
+  const now = new Date();
+  // IST = UTC + 5:30 (330 minutes)
+  const totalUtcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  return (totalUtcMinutes + 330) % (24 * 60);
+}
+
+async function checkScheduler() {
+  try {
+    const snapshot = await db.collection("screens").get();
+    const currentIstMins = getISTMinutesFromMidnight();
+
+    for (const doc of snapshot.docs) {
+      const s = doc.data();
+      if (!s.schedulerEnabled || !Array.isArray(s.schedulerSlots) || s.schedulerSlots.length === 0) {
+        continue;
+      }
+
+      let activeSlot = null;
+      for (const slot of s.schedulerSlots) {
+        if (!slot.start || !slot.end) continue;
+        const startMins = hhmmToMins(slot.start);
+        const endMins = hhmmToMins(slot.end);
+
+        if (startMins < endMins) {
+          if (currentIstMins >= startMins && currentIstMins < endMins) {
+            activeSlot = slot;
+            break;
+          }
+        } else if (startMins > endMins) {
+          // Overnight slot e.g. 22:00 to 06:00
+          if (currentIstMins >= startMins || currentIstMins < endMins) {
+            activeSlot = slot;
+            break;
+          }
+        }
+      }
+
+      if (activeSlot && activeSlot.playlistId && activeSlot.playlistId !== s.currentPlaylist) {
+        const screenName = s.name || doc.id;
+        await doc.ref.update({
+          currentPlaylist: activeSlot.playlistId,
+          schedulerLastPushed: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`📅 Auto-pushed playlist '${activeSlot.playlistId}' to screen '${screenName}' (${activeSlot.start} - ${activeSlot.end})`);
+      }
+    }
+  } catch (error) {
+    console.error("Error running backend scheduler check:", error);
+  }
+}
+
+// Start 24/7 Auto-Scheduler Loop
+console.log("⏰ 24/7 Cloud Auto-Scheduler Started!");
+checkScheduler();
+setInterval(checkScheduler, SCHEDULER_CHECK_INTERVAL_MS);
+
 // Create a dummy web server so Render.com can host this as a Free "Web Service"
 const http = require('http');
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Bhimavaram Digitals Monitor is running!\n');
+  res.end('Bhimavaram Digitals Monitor & Auto-Scheduler is running!\n');
 }).listen(PORT, () => {
   console.log(`🌍 Web server listening on port ${PORT} (Required for Render free tier)`);
 });

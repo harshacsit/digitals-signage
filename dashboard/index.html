@@ -86,6 +86,10 @@
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="13" cy="11" r="2.3" stroke="currentColor" stroke-width="1.3"/></svg>
             <span class="nav-label">Playlists</span>
           </button>
+          <button class="navBtn" id="schedulerNavBtn" onclick="switchView('schedulerView', this)" title="Auto Scheduler">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M8 4v4l2.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            <span class="nav-label">Auto Scheduler</span>
+          </button>
           <button class="navBtn" id="liveWallNavBtn" onclick="switchView('liveWallView', this)" title="Live View">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><rect x="1" y="2" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 13h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 11v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="6.5" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
             <span class="nav-label">Live View</span>
@@ -205,7 +209,6 @@
                     <th style="width: 90px;">Status</th>
                     <th style="width: 160px;">Name</th>
                     <th style="width: 170px;">Playlist</th>
-                    <th style="width: 190px;">Timer Slots</th>
                     <th style="width: 170px;">Layout &amp; Rotation</th>
                     <th style="width: 120px;">Last seen</th>
                     <th class="text-end" style="width: 170px;">Actions</th>
@@ -247,72 +250,24 @@
           </div>
         </div>
 
-        <!-- MULTI-SLOT SCREEN TIMER MODAL -->
-        <div id="screenTimerModal" class="modal-overlay" style="display: none;">
-          <div class="modal-card timer-modal-card">
-            <!-- Header -->
-            <div class="timer-modal-header">
-              <div class="d-flex align-items-center gap-2">
-                <div class="timer-modal-icon">⏰</div>
-                <div>
-                  <h3 class="h5 fw-bold mb-0" id="timerModalTitle">Timer Schedule</h3>
-                  <div class="timer-modal-sub">Applies every day until you change it</div>
-                </div>
-              </div>
-              <button type="button" class="btn-close" onclick="closeScreenTimerModal()"></button>
+        <!-- AUTO SCHEDULER -->
+        <section id="schedulerView" class="view">
+          <div class="pageHeader d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+            <div>
+              <h1 class="mb-1">Auto Scheduler (24/7)</h1>
+              <div class="sub">Configure playlist time slots for screens. Updates push automatically 24/7 — even when dashboard is closed.</div>
             </div>
-
-            <div class="modal-body py-0">
-              <input type="hidden" id="modalTimerScreenId" value="" />
-
-              <!-- Enable toggle -->
-              <div class="timer-enable-row">
-                <label class="timer-enable-label" for="modalTimerEnabled">
-                  <div class="timer-enable-text">
-                    <span class="fw-semibold">Enable Timer Schedule</span>
-                    <span class="timer-enable-desc">Screen follows the time slots below every day</span>
-                  </div>
-                  <div class="form-check form-switch mb-0">
-                    <input class="form-check-input cursor-pointer" type="checkbox" id="modalTimerEnabled"
-                      onchange="toggleModalTimerInputs(this.checked)" style="width:2.5em; height:1.3em;" />
-                  </div>
-                </label>
-              </div>
-
-              <!-- Slots area -->
-              <div id="modalTimerOptionsGroup" class="timer-slots-area">
-                <div class="timer-slots-header">
-                  <div class="timer-slots-title">Time Slots</div>
-                  <div class="timer-slots-hint">Each slot plays a different playlist during its time window</div>
-                </div>
-
-                <!-- Slot rows rendered by JS -->
-                <div id="timerSlotsContainer" class="timer-slots-container"></div>
-
-                <!-- Add slot button -->
-                <button type="button" class="btn-add-slot" onclick="addTimerSlot()">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M7 4v6M4 7h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                  Add Time Slot
-                </button>
-
-                <!-- Live preview -->
-                <div class="timer-preview-box">
-                  <div class="timer-preview-label">📋 Today's Schedule Preview</div>
-                  <div id="modalTimerPreviewText" class="timer-preview-content">
-                    Configure slots above to see preview.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="modal-footer pt-3 mt-3 border-top d-flex justify-content-end gap-2">
-              <button class="btn btn-light border px-3" onclick="closeScreenTimerModal()">Cancel</button>
-              <button class="btn btn-primary-brand px-4 py-2" onclick="saveScreenTimerModal()">
-                Save &amp; Queue Push
-              </button>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">
+                ⚡ 24/7 Cloud Auto-Push Active
+              </span>
             </div>
           </div>
-        </div>
+
+          <div class="row g-4" id="schedulerGrid">
+            <!-- Screen cards rendered dynamically by scheduler.js -->
+          </div>
+        </section>
 
         <!-- GROUP SETTINGS & TIMER CONFIG MODAL -->
         <div id="groupSettingsModal" class="modal-overlay" style="display: none;">
@@ -663,6 +618,7 @@
   <script src="modules/preview.js"></script>
   <script src="modules/liveview.js"></script>
   <script src="modules/livewall.js"></script>
+  <script src="modules/scheduler.js"></script>
   <script src="app.js"></script>
 
 </body>

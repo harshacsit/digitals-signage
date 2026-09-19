@@ -521,7 +521,7 @@
       const timerState = getScreenTimerState(s, pending);
 
       if (isFirstRender) {
-        // Full build on first render — 7 compact columns, zero horizontal scrolling
+        // Full build on first render — compact columns
         tr.innerHTML = `
           <td class="cell-status">
             <span class="badge-status ${isOnline ? "online" : "offline"}">
@@ -531,7 +531,6 @@
           </td>
           <td class="cell-name">${nameCellHtml(docId, s)}</td>
           <td class="cell-playlist">${playlistDropdown(docId, s.currentPlaylist)}</td>
-          <td class="cell-timer">${timerScheduleCell(docId, s)}</td>
           <td class="cell-layout">
             <div class="d-flex flex-column gap-1">
               <div class="d-flex align-items-center gap-1">
@@ -594,11 +593,6 @@
       const isUserInPlaylist = activeEl && playlistCell && playlistCell.contains(activeEl);
       if (playlistCell && (!isUserInPlaylist || forceLayoutUpdate)) {
         playlistCell.innerHTML = playlistDropdown(docId, s.currentPlaylist);
-      }
-
-      const timerCell = tr.querySelector(".cell-timer");
-      if (timerCell) {
-        timerCell.innerHTML = timerScheduleCell(docId, s);
       }
 
       const layoutCell = tr.querySelector(".cell-layout");
@@ -815,214 +809,6 @@
       setPendingField(screenId, "rotation", parseInt(value, 10), appState.screenDataCache[screenId]?.rotation || 0);
     }
 
-    // ===== MULTI-SLOT SCREEN TIMER MODAL HANDLERS =====
-
-    // Render the list of slot rows inside the modal
-    function renderModalSlotRows(slots) {
-      const container = document.getElementById('timerSlotsContainer');
-      if (!container) return;
-      const playlists = appState.playlistsCache || [];
-
-      container.innerHTML = '';
-
-      if (!slots || slots.length === 0) {
-        container.innerHTML = `<div class="timer-slot-empty">No slots yet. Click "+ Add Slot" to add a time window.</div>`;
-        return;
-      }
-
-      slots.forEach((slot, idx) => {
-        const playlistOpts = playlists.map(p =>
-          `<option value="${p.id}" ${p.id === (slot.playlistId || '') ? 'selected' : ''}>${p.name}</option>`
-        ).join('');
-
-        const row = document.createElement('div');
-        row.className = 'timer-slot-row';
-        row.dataset.idx = idx;
-        row.innerHTML = `
-          <div class="slot-num">${idx + 1}</div>
-          <div class="slot-time-group">
-            <input type="time" class="slot-time-input slot-start" value="${slot.start || '09:00'}" />
-            <span class="slot-arrow">→</span>
-            <input type="time" class="slot-time-input slot-end" value="${slot.end || '17:00'}" />
-          </div>
-          <div class="slot-playlist-group">
-            <select class="slot-playlist-select">
-              <option value="">— none —</option>
-              ${playlistOpts}
-            </select>
-          </div>
-          <button type="button" class="slot-remove-btn" title="Remove slot" onclick="removeTimerSlot(${idx})">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 4h12M5 4V2h6v2M6 7v6M10 7v6M3 4l1 10h8l1-10"/></svg>
-          </button>
-        `;
-        container.appendChild(row);
-      });
-
-      updateModalTimerPreview();
-    }
-
-    function readSlotsFromModal() {
-      const rows = document.querySelectorAll('#timerSlotsContainer .timer-slot-row');
-      const slots = [];
-      rows.forEach(row => {
-        const start = row.querySelector('.slot-start')?.value || '';
-        const end = row.querySelector('.slot-end')?.value || '';
-        const playlistId = row.querySelector('.slot-playlist-select')?.value || '';
-        slots.push({ start, end, playlistId });
-      });
-      return slots;
-    }
-
-    function openScreenTimerModal(screenId) {
-      const s = appState.screenDataCache[screenId] || {};
-      const pending = appState.pendingChanges[screenId] || {};
-
-      const modal = document.getElementById('screenTimerModal');
-      if (!modal) return;
-
-      const titleEl = document.getElementById('timerModalTitle');
-      if (titleEl) titleEl.textContent = `Timer Schedule — ${s.name || screenId}`;
-
-      const screenIdInput = document.getElementById('modalTimerScreenId');
-      if (screenIdInput) screenIdInput.value = screenId;
-
-      const enabledCb = document.getElementById('modalTimerEnabled');
-      const timerEnabled = pending.timerEnabled !== undefined ? pending.timerEnabled : (s.timerEnabled === true);
-      if (enabledCb) enabledCb.checked = timerEnabled;
-
-      // Resolve slots
-      let slots = pending.timerSlots !== undefined ? pending.timerSlots
-        : (s.timerSlots || []);
-
-      // Migrate legacy fields if no slots exist
-      if (slots.length === 0 && s.timerStart && s.timerEnd) {
-        slots = [{ start: legacy12hTo24h(s.timerStart), end: legacy12hTo24h(s.timerEnd), playlistId: s.currentPlaylist || '' }];
-      }
-
-      // Store working copy on window for add/remove slot callbacks
-      window._timerModalScreenId = screenId;
-      window._timerModalSlots = JSON.parse(JSON.stringify(slots));
-
-      toggleModalTimerInputs(timerEnabled);
-      renderModalSlotRows(window._timerModalSlots);
-
-      modal.style.display = 'flex';
-    }
-
-    function toggleModalTimerInputs(enabled) {
-      const optionsGroup = document.getElementById('modalTimerOptionsGroup');
-      if (optionsGroup) {
-        optionsGroup.style.opacity = enabled ? '1' : '0.45';
-        optionsGroup.style.pointerEvents = enabled ? 'auto' : 'none';
-      }
-      updateModalTimerPreview();
-    }
-
-    function updateModalTimerPreview() {
-      const previewEl = document.getElementById('modalTimerPreviewText');
-      if (!previewEl) return;
-
-      const enabled = document.getElementById('modalTimerEnabled')?.checked;
-      if (!enabled) {
-        previewEl.innerHTML = '<strong>Timer Disabled</strong> — Screen plays whatever playlist is assigned continuously.';
-        return;
-      }
-
-      const slots = readSlotsFromModal();
-      const playlists = appState.playlistsCache || [];
-
-      if (slots.length === 0) {
-        previewEl.innerHTML = '⚠️ No slots defined. Add at least one slot.';
-        return;
-      }
-
-      const now = new Date();
-      const nowMins = now.getHours() * 60 + now.getMinutes();
-
-      const lines = slots.map((sl, i) => {
-        const startMins = hhmm24ToMinutes(sl.start);
-        const endMins = hhmm24ToMinutes(sl.end);
-        const pl = playlists.find(p => p.id === sl.playlistId);
-        const plName = pl ? pl.name : '(none)';
-        let isNow = false;
-        if (startMins < endMins) isNow = nowMins >= startMins && nowMins < endMins;
-        else if (startMins > endMins) isNow = nowMins >= startMins || nowMins < endMins;
-        const activeTag = isNow ? ' <span class="slot-preview-active">▶ NOW</span>' : '';
-        return `<div class="slot-preview-row"><span class="slot-preview-time">${hhmm24To12h(sl.start)} – ${hhmm24To12h(sl.end)}</span><span class="slot-preview-pl">${plName}</span>${activeTag}</div>`;
-      }).join('');
-
-      previewEl.innerHTML = lines;
-    }
-
-    function addTimerSlot() {
-      if (!window._timerModalSlots) window._timerModalSlots = [];
-      // Default new slot to next hour after last slot's end, or 09:00
-      const last = window._timerModalSlots[window._timerModalSlots.length - 1];
-      let startHr = 9, endHr = 10;
-      if (last && last.end) {
-        const endParts = last.end.split(':');
-        startHr = parseInt(endParts[0], 10);
-        endHr = Math.min(startHr + 1, 23);
-      }
-      window._timerModalSlots.push({
-        start: `${String(startHr).padStart(2,'0')}:00`,
-        end: `${String(endHr).padStart(2,'0')}:00`,
-        playlistId: ''
-      });
-      renderModalSlotRows(window._timerModalSlots);
-    }
-
-    function removeTimerSlot(idx) {
-      if (!window._timerModalSlots) return;
-      window._timerModalSlots.splice(idx, 1);
-      renderModalSlotRows(window._timerModalSlots);
-    }
-
-    function closeScreenTimerModal() {
-      const modal = document.getElementById('screenTimerModal');
-      if (modal) modal.style.display = 'none';
-      window._timerModalSlots = null;
-      window._timerModalScreenId = null;
-    }
-
-    function saveScreenTimerModal() {
-      const screenId = document.getElementById('modalTimerScreenId')?.value;
-      if (!screenId) return;
-
-      const enabled = document.getElementById('modalTimerEnabled')?.checked || false;
-
-      // Read slots from current modal rows
-      const slots = readSlotsFromModal();
-
-      // Validate: each slot must have start < end (or we allow overnight)
-      for (const sl of slots) {
-        if (!sl.start || !sl.end) {
-          if (AppModules.showToast) AppModules.showToast('Every slot must have a start and end time.', 'error');
-          return;
-        }
-      }
-
-      // Build pending update
-      setPendingField(screenId, 'timerEnabled', enabled, appState.screenDataCache[screenId]?.timerEnabled || false);
-      setPendingField(screenId, 'timerSlots', slots, appState.screenDataCache[screenId]?.timerSlots || []);
-
-      // Backward-compat legacy fields for Android app
-      if (slots.length > 0) {
-        setPendingField(screenId, 'timerStart', hhmm24To12h(slots[0].start), appState.screenDataCache[screenId]?.timerStart || '09:00 AM');
-        setPendingField(screenId, 'timerEnd', hhmm24To12h(slots[slots.length - 1].end), appState.screenDataCache[screenId]?.timerEnd || '05:00 PM');
-        setPendingField(screenId, 'playlist', slots[0].playlistId || '', appState.screenDataCache[screenId]?.currentPlaylist || '');
-      }
-
-      closeScreenTimerModal();
-
-      const s = appState.screenDataCache[screenId];
-      if (s) renderScreenRow(screenId, s, true);
-
-      if (AppModules.showToast) {
-        AppModules.showToast(`Timer schedule saved (${slots.length} slot${slots.length !== 1 ? 's' : ''}). Click Push to deploy.`, 'info');
-      }
-    }
-
     function pushChanges(screenId) {
       const pending = appState.pendingChanges[screenId];
       if (!pending || Object.keys(pending).length === 0) {
@@ -1034,10 +820,6 @@
       if (pending.layoutMode !== undefined) update.layoutMode = pending.layoutMode;
       if (pending.playlist !== undefined) update.currentPlaylist = pending.playlist || null;
       if (pending.afterTimerPlaylist !== undefined) update.afterTimerPlaylist = pending.afterTimerPlaylist || null;
-      if (pending.timerEnabled !== undefined) update.timerEnabled = pending.timerEnabled;
-      if (pending.timerSlots !== undefined) update.timerSlots = pending.timerSlots;
-      if (pending.timerStart !== undefined) update.timerStart = pending.timerStart;
-      if (pending.timerEnd !== undefined) update.timerEnd = pending.timerEnd;
       if (pending.bottomWebUrl !== undefined) update.bottomWebUrl = pending.bottomWebUrl || null;
       if (pending.splitRatio !== undefined) update.splitRatio = pending.splitRatio;
       if (pending.rotation !== undefined) update.rotation = pending.rotation;
@@ -1480,13 +1262,6 @@
       onBottomWebUrlChange,
       onSplitRatioChange,
       onRotationChange,
-      openScreenTimerModal,
-      closeScreenTimerModal,
-      toggleModalTimerInputs,
-      updateModalTimerPreview,
-      addTimerSlot,
-      removeTimerSlot,
-      saveScreenTimerModal,
       pushChanges,
       removeScreen,
       populateMassLaunchPlaylists,
