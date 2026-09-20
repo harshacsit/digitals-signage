@@ -94,6 +94,7 @@ async function processScreensInMemory() {
   if (screenCache.length === 0) return;
 
   const currentIstMins = getISTMinutesFromMidnight();
+  const updatePromises = [];
 
   for (const item of screenCache) {
     const s = item.data;
@@ -144,17 +145,24 @@ async function processScreensInMemory() {
       }
 
       if (activeSlot && activeSlot.playlistId && activeSlot.playlistId !== s.currentPlaylist) {
-        try {
-          await item.ref.update({
-            currentPlaylist: activeSlot.playlistId,
-            schedulerLastPushed: admin.firestore.FieldValue.serverTimestamp()
-          });
-          console.log(`📅 Auto-pushed playlist '${activeSlot.playlistId}' to screen '${screenName}' (${activeSlot.start} - ${activeSlot.end})`);
-        } catch (err) {
-          console.error(`Error updating currentPlaylist for screen ${screenName}:`, err);
-        }
+        updatePromises.push((async () => {
+          try {
+            await item.ref.update({
+              currentPlaylist: activeSlot.playlistId,
+              schedulerLastPushed: admin.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`📅 Auto-pushed playlist '${activeSlot.playlistId}' to screen '${screenName}' (${activeSlot.start} - ${activeSlot.end})`);
+          } catch (err) {
+            console.error(`Error updating currentPlaylist for screen ${screenName}:`, err);
+          }
+        })());
       }
     }
+  }
+
+  // Execute any required playlist updates in parallel for 100% simultaneous screen transitions
+  if (updatePromises.length > 0) {
+    await Promise.all(updatePromises);
   }
 
   firstRun = false;
