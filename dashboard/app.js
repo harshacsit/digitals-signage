@@ -112,6 +112,29 @@
     screens.renderScreenRow(docId, s);
   };
 
+  // ── Render Backend Keep-Alive & Health Ping Loop ─────────────────────────────
+  function startBackendKeepAlive() {
+    const backendUrl = window.AppConfig && window.AppConfig.backendUrl;
+    if (!backendUrl) return;
+
+    function pingBackend() {
+      fetch(backendUrl, { mode: 'cors', cache: 'no-store' })
+        .then(res => {
+          if (res.ok) console.log(`🟢 [Render Backend Keep-Alive] Ping successful: ${backendUrl}`);
+        })
+        .catch(err => {
+          // Cross-origin or sleeping service warming up
+          console.log(`🟡 [Render Backend Keep-Alive] Pinging ${backendUrl}...`);
+        });
+    }
+
+    // Ping immediately on boot, then every 4 minutes (240s) to prevent Render from sleeping (15-min limit)
+    pingBackend();
+    setInterval(pingBackend, 240 * 1000);
+  }
+
+  startBackendKeepAlive();
+
   authManager.bind();
   if (document.getElementById("playlistItems")) {
     playlists.addPlaylistItemRow();
