@@ -379,8 +379,6 @@ body {
 /* ===================== TABLES ===================== */
 .table-responsive {
   position: relative;
-  max-height: calc(100vh - 230px);
-  overflow-y: auto;
 }
 
 .table {
