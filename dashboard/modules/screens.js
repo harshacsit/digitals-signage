@@ -1079,28 +1079,6 @@
             </td>
             <td>
               <select class="form-select form-select-sm border-secondary-subtle"
-                onchange="onMassLaunchScreenAfterPlaylistChange('${id}', this.value)">
-                ${afterPlaylistOptionsHtml}
-              </select>
-            </td>
-            <td>
-              <div class="d-flex align-items-center gap-1">
-                <div class="form-check form-switch me-1" title="Toggle Clock Timer">
-                  <input class="form-check-input" type="checkbox" ${selectedTimerEnabled ? "checked" : ""} onchange="onMassLaunchScreenTimerToggle('${id}', this.checked)" />
-                </div>
-                ${selectedTimerEnabled ? `
-                  <select class="form-select form-select-sm clock-select" style="max-width: 105px;" onchange="onMassLaunchScreenTimerStartChange('${id}', this.value)">
-                    ${startOptionsHtml}
-                  </select>
-                  <span class="text-muted small">to</span>
-                  <select class="form-select form-select-sm clock-select" style="max-width: 105px;" onchange="onMassLaunchScreenTimerEndChange('${id}', this.value)">
-                    ${endOptionsHtml}
-                  </select>
-                ` : '<span class="text-muted small">Timer Off</span>'}
-              </div>
-            </td>
-            <td>
-              <select class="form-select form-select-sm border-secondary-subtle"
                 onchange="onMassLaunchScreenRotationChange('${id}', this.value)">
                 ${rotationOptionsHtml}
               </select>
@@ -1166,26 +1144,15 @@
 
           const staged = massLaunchStagingCache[id];
           const playlistId = staged !== undefined ? staged.playlistId : (s.currentPlaylist || "");
-          const afterPlaylistId = staged !== undefined ? staged.afterTimerPlaylistId : (s.afterTimerPlaylist || "");
-          const timerEnabled = staged !== undefined ? staged.timerEnabled : (s.timerEnabled === true);
-          const timerStart = staged !== undefined ? staged.timerStart : (s.timerStart || "09:00 AM");
-          const timerEnd = staged !== undefined ? staged.timerEnd : (s.timerEnd || "05:00 PM");
           const rotation = staged !== undefined ? staged.rotation : (s.rotation !== undefined ? s.rotation : 0);
 
           const playlistObj = playlists.find(p => p.id === playlistId);
           const playlistName = playlistObj ? playlistObj.name : "None (Clear)";
 
-          const afterObj = playlists.find(p => p.id === afterPlaylistId);
-          const afterName = afterObj ? afterObj.name : "None";
-
-          const scheduleText = timerEnabled ? `${timerStart} - ${timerEnd}` : "Disabled";
-
           return `
             <tr>
               <td class="fw-semibold text-dark">${name}</td>
               <td><span class="badge bg-light text-dark border">${playlistName}</span></td>
-              <td><span class="badge bg-amber-subtle text-dark border">${afterName}</span></td>
-              <td><span class="badge bg-info-subtle text-dark border">${scheduleText}</span></td>
               <td><span class="badge bg-secondary-subtle text-dark border">${rotation}°</span></td>
             </tr>
           `;
