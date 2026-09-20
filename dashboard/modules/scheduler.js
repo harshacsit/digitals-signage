@@ -130,6 +130,13 @@
       renderSchedulerView();
     }
 
+    function destroySchedulerView() {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+    }
+
     function renderSchedulerView() {
       const container = document.getElementById('schedulerGrid');
       if (!container) return;
@@ -422,7 +429,47 @@
       );
       pairedScreenIds.forEach(id => {
         const card = document.getElementById(`schedCard_${id}`);
-        if (card) renderScreenSchedulerCardUI(id);
+        if (!card) return;
+
+        // Surgical update: only refresh the status chip and active-slot highlight.
+        // Do NOT re-render the whole card — that would wipe any in-progress user input.
+        const s = appState.screenDataCache[id] || {};
+        const pending = appState.pendingSchedulerChanges[id];
+        const enabled = pending?.schedulerEnabled !== undefined ? pending.schedulerEnabled : (s.schedulerEnabled === true);
+        const slots = pending?.schedulerSlots !== undefined ? pending.schedulerSlots : (s.schedulerSlots || []);
+        const playlists = appState.playlistsCache || [];
+
+        const activeSlot = enabled ? getActiveSchedulerSlot(slots) : null;
+        const activePlaylist = activeSlot ? playlists.find(p => p.id === activeSlot.playlistId) : null;
+
+        // Update status chip
+        const statusDiv = card.querySelector(`#schedStatus_${id}`);
+        if (statusDiv) {
+          let html = '';
+          if (!enabled) {
+            html = `<div class="sched-status-chip is-off">Scheduler off — this screen keeps its assigned playlist.</div>`;
+          } else if (activeSlot) {
+            const plName = activePlaylist ? activePlaylist.name : 'Unknown Playlist';
+            html = `
+              <div class="sched-status-chip is-active">
+                <span class="sched-live-pulse"></span>
+                <strong>Now playing:</strong> ${plName} (${hhmm24To12h(activeSlot.start)} – ${hhmm24To12h(activeSlot.end)})
+              </div>
+            `;
+          } else if (slots.length > 0) {
+            html = `<div class="sched-status-chip is-waiting">${slots.length} time slot(s) scheduled — waiting for the next window.</div>`;
+          } else {
+            html = `<div class="sched-status-chip is-empty">Scheduler is on but has no time slots. Add a time slot to continue.</div>`;
+          }
+          statusDiv.innerHTML = html;
+        }
+
+        // Update active-slot row highlight without touching inputs
+        card.querySelectorAll('.sched-slot-row').forEach((row, idx) => {
+          const isActive = activeSlot && slots[idx] === activeSlot;
+          if (isActive) row.classList.add('is-active-slot');
+          else row.classList.remove('is-active-slot');
+        });
       });
     }
 
@@ -543,6 +590,7 @@
 
     return {
       initSchedulerView,
+      destroySchedulerView,
       renderSchedulerView,
       watchScheduler
     };

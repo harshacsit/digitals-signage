@@ -55,79 +55,26 @@ async function sendTelegramMessage(message) {
   }
 }
 
-// 3. Monitor Screens
-// We consider a screen offline if it misses its heartbeats for over 12 minutes
-const OFFLINE_THRESHOLD_MS = 720000; // 12 min (2.4x the 5-min Android heartbeat) — matches dashboard threshold
-const CHECK_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
-const REMINDER_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 hours
+// 3. In-Memory Real-Time Screen Cache (Drastically reduces Firestore Reads to stay 100% Free)
+const OFFLINE_THRESHOLD_MS = 720000; // 12 min threshold (matches dashboard)
+const CHECK_INTERVAL_MS = 2 * 60 * 1000; // Run monitor & scheduler checks every 2 minutes in memory
 
+let screenCache = []; // Holds live in-memory copy of screens collection
 let screenStatus = {}; // { screenId: isOnline }
-let screenLastAlerted = {}; // { screenId: timestamp }
 let firstRun = true;
 
-async function checkScreens() {
-  try {
-    const snapshot = await db.collection("screens").get();
-    let onlineCount = 0;
+// Real-time listener: Firestore charges 0 reads for timer checks because data is kept in memory
+db.collection("screens").onSnapshot(snapshot => {
+  screenCache = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ref: doc.ref,
+    data: doc.data()
+  }));
+}, error => {
+  console.error("❌ Firestore snapshot listener error:", error);
+});
 
-    snapshot.forEach(doc => {
-      const s = doc.data();
-      if (s.status !== "paired") return; // Only monitor actively paired screens
-
-      const lastSeen = s.lastSeen ? s.lastSeen.toMillis() : 0;
-      const isOnline = (Date.now() - lastSeen) < OFFLINE_THRESHOLD_MS;
-      if (isOnline) onlineCount++;
-
-      const previousStatus = screenStatus[doc.id];
-      const screenName = s.name || doc.id;
-
-      // Don't send alerts on the very first run, just populate the initial state
-      if (!firstRun) {
-        if (previousStatus === true && !isOnline) {
-          // Transition from Online -> Offline
-          console.log(`🚨 Screen Offline: ${screenName}`);
-          sendTelegramMessage(`🚨 *Offline Alert*\nScreen: *${screenName}*\nStatus: Stopped sending heartbeats.`);
-          screenLastAlerted[doc.id] = Date.now();
-        }
-        /*
-        else if (previousStatus === false && !isOnline) {
-          // Still offline. Check if 2 hours have passed since the last alert
-          const lastAlertTime = screenLastAlerted[doc.id] || 0;
-          
-          // Only send reminder if we tracked it going offline while the bot was running
-          if (lastAlertTime > 0 && (Date.now() - lastAlertTime) >= REMINDER_INTERVAL_MS) {
-            console.log(`⏳ Offline Reminder: ${screenName}`);
-            sendTelegramMessage(`⏳ *Offline Reminder*\nScreen: *${screenName}*\nStatus: Still offline (2 hours passed).`);
-            screenLastAlerted[doc.id] = Date.now();
-          }
-        }
-        */
-        else if (previousStatus === false && isOnline) {
-          // Transition from Offline -> Online
-          console.log(`✅ Screen Online: ${screenName}`);
-          sendTelegramMessage(`✅ *Online Alert*\nScreen: *${screenName}*\nStatus: Reconnected & Heartbeat received.`);
-          delete screenLastAlerted[doc.id]; // Clear the reminder tracker
-        }
-      }
-
-      screenStatus[doc.id] = isOnline;
-    });
-
-    firstRun = false;
-  } catch (error) {
-    console.error("Error fetching screens:", error);
-  }
-}
-
-// Start Monitoring
-console.log("🚀 Firebase-Telegram Monitor Bot Started!");
-checkScreens(); // Initial check
-setInterval(checkScreens, CHECK_INTERVAL_MS);
-
-// 4. 24/7 Auto-Scheduler Backend Loop
-// Checks every 1 minute so playlist switches happen precisely on schedule in IST timezone
-const SCHEDULER_CHECK_INTERVAL_MS = 60 * 1000;
-
+// Helper functions for IST schedule calculation
 function hhmmToMins(str) {
   if (!str) return -1;
   const parts = str.split(':');
@@ -142,18 +89,41 @@ function getISTMinutesFromMidnight() {
   return (totalUtcMinutes + 330) % (24 * 60);
 }
 
-async function checkScheduler() {
-  try {
-    const snapshot = await db.collection("screens").get();
-    const currentIstMins = getISTMinutesFromMidnight();
+// Unified in-memory worker: checks offline status + auto-scheduler (0 Firestore reads)
+async function processScreensInMemory() {
+  if (screenCache.length === 0) return;
 
-    for (const doc of snapshot.docs) {
-      const s = doc.data();
-      if (!s.schedulerEnabled || !Array.isArray(s.schedulerSlots) || s.schedulerSlots.length === 0) {
-        continue;
+  const currentIstMins = getISTMinutesFromMidnight();
+
+  for (const item of screenCache) {
+    const s = item.data;
+    const docId = item.id;
+    const screenName = s.name || docId;
+
+    // --- A. Offline Monitoring ---
+    if (s.status === "paired") {
+      const lastSeen = s.lastSeen ? s.lastSeen.toMillis() : 0;
+      const isOnline = (Date.now() - lastSeen) < OFFLINE_THRESHOLD_MS;
+      const previousStatus = screenStatus[docId];
+
+      if (!firstRun) {
+        if (previousStatus === true && !isOnline) {
+          // Transition from Online -> Offline: ONE alert only
+          console.log(`🚨 Screen Offline: ${screenName}`);
+          sendTelegramMessage(`🚨 *Offline Alert*\nScreen: *${screenName}*\nStatus: Stopped sending heartbeats.`);
+        } else if (previousStatus === false && isOnline) {
+          // Transition from Offline -> Online
+          console.log(`✅ Screen Online: ${screenName}`);
+          sendTelegramMessage(`✅ *Online Alert*\nScreen: *${screenName}*\nStatus: Reconnected & Heartbeat received.`);
+        }
       }
+      screenStatus[docId] = isOnline;
+    }
 
+    // --- B. 24/7 Auto-Scheduler ---
+    if (s.schedulerEnabled && Array.isArray(s.schedulerSlots) && s.schedulerSlots.length > 0) {
       let activeSlot = null;
+
       for (const slot of s.schedulerSlots) {
         if (!slot.start || !slot.end) continue;
         const startMins = hhmmToMins(slot.start);
@@ -174,23 +144,26 @@ async function checkScheduler() {
       }
 
       if (activeSlot && activeSlot.playlistId && activeSlot.playlistId !== s.currentPlaylist) {
-        const screenName = s.name || doc.id;
-        await doc.ref.update({
-          currentPlaylist: activeSlot.playlistId,
-          schedulerLastPushed: admin.firestore.FieldValue.serverTimestamp()
-        });
-        console.log(`📅 Auto-pushed playlist '${activeSlot.playlistId}' to screen '${screenName}' (${activeSlot.start} - ${activeSlot.end})`);
+        try {
+          await item.ref.update({
+            currentPlaylist: activeSlot.playlistId,
+            schedulerLastPushed: admin.firestore.FieldValue.serverTimestamp()
+          });
+          console.log(`📅 Auto-pushed playlist '${activeSlot.playlistId}' to screen '${screenName}' (${activeSlot.start} - ${activeSlot.end})`);
+        } catch (err) {
+          console.error(`Error updating currentPlaylist for screen ${screenName}:`, err);
+        }
       }
     }
-  } catch (error) {
-    console.error("Error running backend scheduler check:", error);
   }
+
+  firstRun = false;
 }
 
-// Start 24/7 Auto-Scheduler Loop
-console.log("⏰ 24/7 Cloud Auto-Scheduler Started!");
-checkScheduler();
-setInterval(checkScheduler, SCHEDULER_CHECK_INTERVAL_MS);
+// Start Unified Loop (Checks every 2 minutes in memory)
+console.log("🚀 Bhimavaram Digitals Backend Worker Started (In-Memory Monitoring & Auto-Scheduler)!");
+processScreensInMemory();
+setInterval(processScreensInMemory, CHECK_INTERVAL_MS);
 
 // Create a dummy web server so Render.com can host this as a Free "Web Service"
 const http = require('http');

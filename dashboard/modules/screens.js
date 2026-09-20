@@ -1202,6 +1202,8 @@
       if (modal) {
         modal.style.display = "none";
       }
+      // Bug #7 fix: Clear staging cache so stale values don't show next time the modal opens
+      Object.keys(massLaunchStagingCache).forEach(k => delete massLaunchStagingCache[k]);
     }
 
     async function executeMassLaunch() {
@@ -1240,12 +1242,39 @@
           const timerEnd = staged ? staged.timerEnd : (s && s.timerEnd ? s.timerEnd : "05:00 PM");
           const rotation = staged ? staged.rotation : (s && s.rotation !== undefined ? s.rotation : 0);
 
+          // Bug #2 fix: Write BOTH the new scheduler fields AND legacy timer fields so the
+          // backend auto-scheduler (checkScheduler) can pick up the timer settings.
+          // The backend reads schedulerEnabled + schedulerSlots, NOT timerEnabled/timerStart/timerEnd.
+          let schedulerSlots = s ? (s.schedulerSlots || []) : [];
+          let schedulerEnabled = s ? (s.schedulerEnabled === true) : false;
+
+          if (timerEnabled) {
+            // Convert the legacy 12h timer start/end into a proper schedulerSlot entry.
+            // We preserve any existing multi-slot config if present; otherwise create one slot.
+            // The "after" playlist goes to the slot AFTER the timer window (no scheduled slot covers it).
+            const startTime24 = AppModules.legacy12hTo24h ? AppModules.legacy12hTo24h(timerStart) : '09:00';
+            const endTime24 = AppModules.legacy12hTo24h ? AppModules.legacy12hTo24h(timerEnd) : '17:00';
+            schedulerSlots = [{
+              start: startTime24,
+              end: endTime24,
+              playlistId: playlistId || ''
+            }];
+            schedulerEnabled = true;
+          } else {
+            // Timer disabled — turn off scheduler too
+            schedulerEnabled = false;
+          }
+
           const update = {
             currentPlaylist: playlistId || null,
             afterTimerPlaylist: afterPlaylistId || null,
+            // Legacy fields (for any old Android app versions still reading them)
             timerEnabled: timerEnabled,
             timerStart: timerStart,
             timerEnd: timerEnd,
+            // New scheduler fields (read by backend checkScheduler loop)
+            schedulerEnabled: schedulerEnabled,
+            schedulerSlots: schedulerSlots,
             rotation: rotation
           };
 

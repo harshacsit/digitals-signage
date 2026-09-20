@@ -9,19 +9,26 @@
   const liveWall = createLiveWallModule ? createLiveWallModule({ db }) : null;
   const scheduler = createSchedulerModule ? createSchedulerModule({ db }) : null;
 
-  // Wrap switchView so we mount/unmount Live Wall automatically
+  // Wrap switchView so we mount/unmount Live Wall and Scheduler automatically
   let _currentView = '';
   function switchView(viewId, btn) {
+    // Tear down the previous view
     if (_currentView === 'liveWallView' && viewId !== 'liveWallView' && liveWall) {
       liveWall.unmount();
     }
+    if (_currentView === 'schedulerView' && viewId !== 'schedulerView' && scheduler && scheduler.destroySchedulerView) {
+      scheduler.destroySchedulerView(); // Clear the 30s refresh interval when leaving Scheduler tab
+    }
+
     _switchView(viewId, btn);
     _currentView = viewId;
+
+    // Mount the new view
     if (viewId === 'liveWallView' && liveWall) {
       liveWall.mount();
     }
     if (viewId === 'schedulerView' && scheduler) {
-      scheduler.renderSchedulerView();
+      scheduler.initSchedulerView(); // Re-init starts the interval fresh
     }
   }
 
