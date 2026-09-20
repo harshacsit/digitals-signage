@@ -57,7 +57,7 @@ async function sendTelegramMessage(message) {
 
 // 3. In-Memory Real-Time Screen Cache (Drastically reduces Firestore Reads to stay 100% Free)
 const OFFLINE_THRESHOLD_MS = 720000; // 12 min threshold (matches dashboard)
-const CHECK_INTERVAL_MS = 60 * 1000; // Check every 60 seconds in memory (0 Firestore reads for checks)
+const CHECK_INTERVAL_MS = 15 * 1000; // Check every 15 seconds in memory (0 Firestore reads for checks)
 
 let screenCache = []; // Holds live in-memory copy of screens collection
 let screenStatus = {}; // { screenId: isOnline }

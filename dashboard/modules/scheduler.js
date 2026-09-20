@@ -464,6 +464,14 @@
           statusDiv.innerHTML = html;
         }
 
+        // Auto-push live slot transition to Firestore if scheduler is active, no pending unsaved edits exist, and playlist differs
+        if (!pending && enabled && activeSlot && activeSlot.playlistId && activeSlot.playlistId !== s.currentPlaylist) {
+          db.collection('screens').doc(id).update({
+            currentPlaylist: String(activeSlot.playlistId),
+            schedulerLastPushed: window.firebase && window.firebase.firestore ? window.firebase.firestore.FieldValue.serverTimestamp() : new Date()
+          }).catch(err => console.error(`[Scheduler Auto-Push Error] Screen ${id}:`, err));
+        }
+
         // Update active-slot row highlight without touching inputs
         card.querySelectorAll('.sched-slot-row').forEach((row, idx) => {
           const isActive = activeSlot && slots[idx] === activeSlot;
