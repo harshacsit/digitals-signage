@@ -2,56 +2,152 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. Screens Collection: TV devices & Admin Dashboard
+    // ------------------------------------------------------------------
+    // HELPERS
+    // ------------------------------------------------------------------
+
+    // Any Firebase-authenticated user (incl. anonymous TV players).
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Dashboard admin = signed in with email/password (NOT anonymous).
+    // TV player boxes sign in anonymously, so they can never pass this.
+    //
+    // FIX: We check for email presence rather than sign_in_provider.
+    // Email/password users always have request.auth.token.email.
+    // Anonymous users never have it. This is more reliable across
+    // all environments (localhost, Netlify, Firebase Hosting, etc.)
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.get('email', null) != null;
+    }
+
+    // Fields only the dashboard may change on a screen doc.
+    // TV players may write ANY other field (lastSeen, appActive,
+    // cacheStatus, etc.) so old and new APK builds keep working.
+    function controlFields() {
+      return ['status', 'name', 'currentPlaylist', 'assignedPlaylists',
+              'rotation', 'layoutMode', 'bottomWebUrl', 'splitRatio',
+              'bottomPlaylistId', 'schedulerEnabled', 'schedulerSlots',
+              'schedulerLastPushed', 'afterTimerPlaylist', 'timerEnabled',
+              'timerStart', 'timerEnd', 'timerSlots',
+              'currentProgramId'];   // ← Programs module: only dashboard may set this
+    }
+
+    // Heartbeat throttle: a lastSeen write is accepted at most once per
+    // 2 minutes per screen. Current APK (5-min interval) is never affected.
+    // Old 30-second APKs just get thinned out — they still stay "online"
+    // because the dashboard's online window is 12 minutes.
+    // Clock-skewed devices (stored time in the future / missing) are let through.
+    function heartbeatOk() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let prev = resource.data.get('lastSeen', null);
+      return !changed.hasAny(['lastSeen'])
+        || prev == null
+        || prev > request.time
+        || request.time > prev + duration.value(2, 'm');
+    }
+
+    // ------------------------------------------------------------------
+    // SCREENS
+    // ------------------------------------------------------------------
     match /screens/{screenId} {
-      allow read: if true;
-      allow create: if request.auth != null;
-      allow delete: if request.auth != null;
+      // Players only ever read their OWN doc (get + snapshot listener).
+      // Listing the whole collection is admin-only.
+      allow get:  if true;
+      allow list: if isAdmin();
 
-      // Allow updates for authenticated admins OR device heartbeats/status updates
-      allow update: if true;
+      // First boot of a player: creates an "unpaired" doc with its code.
+      allow create: if isAdmin() || (
+        screenId.size() >= 4 && screenId.size() <= 12
+        && request.resource.data.get('status', '') == 'unpaired'
+        && request.resource.data.keys().size() <= 10
+        && !request.resource.data.keys().hasAny(controlFields().removeAll(['status']))
+      );
+
+      // Admin: anything.
+      // Player: heartbeat/status fields only, throttled.
+      // FIX: raised key limit to 60 (was 40) — older screen docs can
+      // accumulate many fields; 40 was too tight and could block heartbeats.
+      allow update: if isAdmin() || (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(controlFields())
+        && request.resource.data.keys().size() <= 60
+        && heartbeatOk()
+      );
+
+      allow delete: if isAdmin();
     }
 
-    // 2. Playlists Collection
+    // ------------------------------------------------------------------
+    // PLAYLISTS  (players: read one doc by ID; only admin writes)
+    // ------------------------------------------------------------------
     match /playlists/{playlistId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow get:  if true;
+      allow list: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.items is list
+        && request.resource.data.items.size() <= 500;
+      allow delete: if isAdmin();
     }
 
-    // 3. Groups Collection
-    match /groups/{groupId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+    // ------------------------------------------------------------------
+    // ANALYTICS   analytics/{screenId_yyyyMMdd}/items/{encodedUrl}
+    // ------------------------------------------------------------------
+    function validAnalytics(dayId) {
+      let d = request.resource.data;
+      return isSignedIn()                             // anonymous player OK
+        && d.keys().size() <= 12
+        && d.get('screenId', '') is string
+        && d.get('date', '') is string
+        && dayId == d.get('screenId', '') + '_' + d.get('date', '')
+        && d.get('url', '') is string
+        && d.get('url', '').size() <= 2000
+        && d.get('playCount', 0) is number
+        && d.get('playCount', 0) >= 0
+        && d.get('playCount', 0) <= 100000
+        && d.get('totalSeconds', 0) is number
+        && d.get('totalSeconds', 0) >= 0
+        && d.get('totalSeconds', 0) <= 1000000;
     }
 
-    // 4. Analytics Collection & Subcollection
-    match /analytics/{dayDocId} {
-      allow read: if request.auth != null;
-      allow write: if true;
+    match /analytics/{dayId} {
+      allow read, write: if isAdmin();
 
       match /items/{itemId} {
-        allow read: if request.auth != null;
-        // FIXED: Changed from 'allow write: if false;' to allow TV devices & admin logging
-        allow write: if true;
+        allow read:          if isAdmin();
+        allow create, update: if validAnalytics(dayId);
+        allow delete:        if isAdmin();
       }
     }
 
-    // Collection Group rule for 'items' subcollection (Required for network-wide collectionGroup queries)
+    // Dashboard collectionGroup("items") query for cross-screen analytics
     match /{path=**}/items/{itemId} {
-      allow read: if request.auth != null || true;
-      allow write: if true;
+      allow read: if isAdmin();
     }
 
-    // 5. Config Collection
-    match /config/{docId} {
-      allow read: if true;
-      allow write: if false;
+    // ------------------------------------------------------------------
+    // DASHBOARD-ONLY COLLECTIONS
+    // ------------------------------------------------------------------
+    match /groups/{groupId} {
+      allow read, write: if isAdmin();
     }
 
-    // 6. Media Library Collection
     match /mediaFiles/{fileId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
+
+    // OTA update info: players read it (get only), admin writes it.
+    match /config/{docId} {
+      allow get:   if true;
+      allow list:  if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // NOTE: "playback_logs" (written by an older APK build) is intentionally
+    // NOT allowed. It stays denied — it can't burn your daily write quota.
+    // The dashboard doesn't read it. Old APKs survive this gracefully.
+    //
+    // Everything else: denied by default (Firestore's built-in behaviour).
   }
 }

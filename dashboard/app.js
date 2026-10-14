@@ -1,5 +1,5 @@
 (function () {
-  const { initializeFirebase, switchView: _switchView, createAuthManager, createScreensModule, createPlaylistsModule, createGroupsModule, createLiveViewModule, createLiveWallModule, createSchedulerModule, createAnalyticsModule, createMediaLibraryModule } = window.AppModules;
+  const { initializeFirebase, switchView: _switchView, createAuthManager, createScreensModule, createPlaylistsModule, createGroupsModule, createLiveViewModule, createLiveWallModule, createSchedulerModule, createAnalyticsModule, createMediaLibraryModule, createProgramsModule } = window.AppModules;
 
   const { auth, db } = initializeFirebase();
   const screens = createScreensModule({ db });
@@ -8,8 +8,9 @@
   const liveview = createLiveViewModule ? createLiveViewModule() : null;
   const liveWall = createLiveWallModule ? createLiveWallModule({ db }) : null;
   const scheduler = createSchedulerModule ? createSchedulerModule({ db }) : null;
-  const analytics = createAnalyticsModule ? createAnalyticsModule({ db }) : null;
+  const analytics    = createAnalyticsModule    ? createAnalyticsModule({ db })    : null;
   const mediaLibrary = createMediaLibraryModule ? createMediaLibraryModule({ db }) : null;
+  const programs     = createProgramsModule     ? createProgramsModule({ db })     : null;
 
   // Wrap switchView so we mount/unmount Live Wall, Scheduler, and Analytics automatically
   let _currentView = '';
@@ -38,6 +39,9 @@
     }
     if (viewId === 'mediaLibraryView' && mediaLibrary) {
       mediaLibrary.renderGrid();
+    }
+    if (viewId === 'programsView' && programs) {
+      programs.renderProgramsTable();
     }
   }
 

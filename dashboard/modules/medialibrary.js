@@ -344,7 +344,7 @@
       var nameIn = document.getElementById('mlSendPlaylistName');
       var name   = nameIn ? nameIn.value.trim() : '';
       if (!name) {
-        if (AppModules.showToast) AppModules.showToast('Please enter a playlist name.', 'error');
+        if (AppModules.showToast) AppModules.showToast('Please enter a program name.', 'error');
         return;
       }
 
@@ -376,48 +376,76 @@
       var saveBtn = document.getElementById('mlSendConfirmBtn');
       if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
 
-      // 1. Create playlist in Firestore
-      db.collection('playlists').add({
-        name:      name,
-        items:     selectedItems,
-        schedule:  null,
-        createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
-      })
-      .then(function(playlistRef) {
-        var playlistId = playlistRef.id;
+      // Process each screen independently.
+      // If the screen already has a currentProgramId → UPDATE that program doc (no duplicate).
+      // Otherwise → CREATE a new program doc and set currentProgramId on the screen.
+      var promises = screenIds.map(function(screenId) {
+        var s = appState.screenDataCache[screenId] || {};
+        var existingProgramId = s.currentProgramId || null;
 
-        // 2. Push to each chosen screen (merge with existing assignedPlaylists)
-        var updates = screenIds.map(function(screenId) {
-          var s        = appState.screenDataCache[screenId] || {};
-          var existing = (Array.isArray(s.assignedPlaylists) && s.assignedPlaylists.length)
-                         ? s.assignedPlaylists
-                         : (s.currentPlaylist ? [s.currentPlaylist] : []);
-          var merged   = existing.indexOf(playlistId) === -1 ? existing.concat([playlistId]) : existing;
-          return db.collection('screens').doc(screenId).update({
-            assignedPlaylists: merged,
-            currentPlaylist:   merged[0] || playlistId
+        if (existingProgramId) {
+          // ── UPDATE existing program ────────────────────────────────────
+          return db.collection('playlists').doc(existingProgramId).update({
+            name:      name,
+            items:     selectedItems,
+            source:    'medialibrary',
+            updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+          }).then(function() {
+            // Make sure screen points at this program as currentPlaylist too
+            var existing = Array.isArray(s.assignedPlaylists) && s.assignedPlaylists.length
+                           ? s.assignedPlaylists
+                           : (s.currentPlaylist ? [s.currentPlaylist] : []);
+            var merged = existing.indexOf(existingProgramId) === -1
+                         ? existing.concat([existingProgramId]) : existing;
+            return db.collection('screens').doc(screenId).update({
+              currentProgramId:  existingProgramId,
+              assignedPlaylists: merged,
+              currentPlaylist:   existingProgramId
+            });
           });
-        });
 
-        return Promise.all(updates).then(function(){ return playlistId; });
-      })
-      .then(function() {
-        closeSendModal();
-        clearSelection();
-        if (AppModules.showToast) AppModules.showToast(
-          'Playlist "' + name + '" created and pushed to ' + screenIds.length + ' screen' + (screenIds.length > 1 ? 's' : '') + '!',
-          'success'
-        );
-      })
-      .catch(function(err) {
-        if (AppModules.showToast) AppModules.showToast('Send failed: ' + err.message, 'error');
-      })
-      .finally(function() {
-        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Send to Screen'; }
+        } else {
+          // ── CREATE new program ─────────────────────────────────────────
+          return db.collection('playlists').add({
+            name:      name,
+            items:     selectedItems,
+            source:    'medialibrary',
+            createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
+          }).then(function(ref) {
+            var programId = ref.id;
+            var existing  = Array.isArray(s.assignedPlaylists) && s.assignedPlaylists.length
+                            ? s.assignedPlaylists
+                            : (s.currentPlaylist ? [s.currentPlaylist] : []);
+            var merged = existing.indexOf(programId) === -1
+                         ? existing.concat([programId]) : existing;
+            return db.collection('screens').doc(screenId).update({
+              currentProgramId:  programId,
+              assignedPlaylists: merged,
+              currentPlaylist:   programId
+            });
+          });
+        }
       });
+
+      Promise.all(promises)
+        .then(function() {
+          closeSendModal();
+          clearSelection();
+          if (AppModules.showToast) AppModules.showToast(
+            'Program "' + name + '" pushed to ' + screenIds.length + ' screen' + (screenIds.length > 1 ? 's' : '') + '!',
+            'success'
+          );
+        })
+        .catch(function(err) {
+          if (AppModules.showToast) AppModules.showToast('Send failed: ' + err.message, 'error');
+        })
+        .finally(function() {
+          if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Push to Screen'; }
+        });
     }
 
     // ── Upload toast helpers ───────────────────────────────────────────────────
+
     function _showUploadToast(name, pct, id) {
       var tray = document.getElementById('mlUploadTray');
       if (!tray) {

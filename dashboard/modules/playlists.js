@@ -21,18 +21,24 @@
         if (typeof window.populateMassLaunchPlaylists === "function") {
           window.populateMassLaunchPlaylists();
         }
+        // Keep Programs tab in sync (programs share the same cache, filtered by source)
+        if (typeof window.renderProgramsTable === "function") {
+          window.renderProgramsTable();
+        }
       });
     }
 
     function renderPlaylistsTable() {
       const container = document.getElementById("playlistsBody");
       if (!container) return;
-      if (appState.playlistsCache.length === 0) {
+      // Filter out programs (source: 'medialibrary') — they live in the Programs tab
+      const playlists = appState.playlistsCache.filter(function(p) { return p.source !== 'medialibrary'; });
+      if (playlists.length === 0) {
         container.innerHTML = `<tr><td colspan="3" class="text-muted text-center py-3">No playlists created yet. Create one below!</td></tr>`;
         return;
       }
 
-      container.innerHTML = appState.playlistsCache.map((p) => {
+      container.innerHTML = playlists.map((p) => {
         const items = p.items || [];
         const visibleItems = items.slice(0, 4);
         let itemBadges = visibleItems.map(i => {

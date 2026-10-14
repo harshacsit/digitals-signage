@@ -97,6 +97,10 @@
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="13" cy="11" r="2.3" stroke="currentColor" stroke-width="1.3"/></svg>
             <span class="nav-label">Playlists</span>
           </button>
+          <button class="navBtn" id="programsNavBtn" onclick="switchView('programsView', this)" title="Programs">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><rect x="1" y="2" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 13h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 11v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M6.5 6l3 1.5L6.5 9z" fill="currentColor"/></svg>
+            <span class="nav-label">Programs</span>
+          </button>
           <button class="navBtn" id="schedulerNavBtn" onclick="switchView('schedulerView', this)" title="Auto Scheduler">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M8 4v4l2.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
             <span class="nav-label">Auto Scheduler</span>
@@ -492,6 +496,53 @@
             <div class="d-flex gap-2 mt-3 align-items-center">
               <button class="btn-ghost" onclick="addPlaylistItemRow()">Add item</button>
               <button class="btn btn-primary-brand" onclick="savePlaylist()">Save playlist</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- PROGRAMS -->
+        <section id="programsView" class="view">
+          <div class="pageHeader">
+            <div>
+              <h1>Programs</h1>
+              <div class="sub">Content pushed from the Media Library. Select media &rarr; Send to Screen &rarr; programs live here.</div>
+            </div>
+          </div>
+
+          <!-- Programs table -->
+          <div class="card p-0 overflow-hidden">
+            <div class="card-table-header">
+              <h2 class="mb-0">Active programs</h2>
+            </div>
+            <div class="table-responsive">
+              <table class="table mb-0">
+                <thead class="blueHead">
+                  <tr>
+                    <th>Program</th>
+                    <th>Items</th>
+                    <th>Screens</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="programsBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Edit panel -->
+          <div class="card" id="programEditPanel" style="display:none">
+            <h2><span class="icon-badge me-2">✎</span>Edit program</h2>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Program name</label>
+                <input id="programName" class="form-control" placeholder="Enter name&hellip;" />
+              </div>
+            </div>
+            <div id="programItems"></div>
+            <div class="d-flex gap-2 mt-3 align-items-center flex-wrap">
+              <button class="btn-ghost" onclick="addProgramItemRow()">+ Add item</button>
+              <button class="btn btn-primary-brand" onclick="saveProgram()">Save program</button>
+              <button class="btn-ghost" onclick="cancelEditProgram()">Cancel</button>
             </div>
           </div>
         </section>
@@ -924,13 +975,14 @@
   <script src="modules/scheduler.js"></script>
   <script src="modules/analytics.js"></script>
   <script src="modules/medialibrary.js"></script>
+  <script src="modules/programs.js"></script>
   <script src="app.js"></script>
 
   <!-- MEDIA LIBRARY — Send to Screen modal -->
   <div id="mlSendModal">
     <div class="ml-send-modal-card">
       <div class="ml-send-modal-header">
-        <h2>Send to Screen</h2>
+        <h2>Push Program to Screen</h2>
         <button class="ml-modal-close" onclick="mlCloseSendModal()">&times;</button>
       </div>
 
@@ -940,9 +992,9 @@
         <div id="mlSendChips" class="ml-chips-wrap"></div>
       </div>
 
-      <!-- Playlist name -->
+      <!-- Program name -->
       <div>
-        <label class="ml-send-label" for="mlSendPlaylistName">New playlist name</label>
+        <label class="ml-send-label" for="mlSendPlaylistName">Program name</label>
         <input id="mlSendPlaylistName" class="ml-send-input" type="text" placeholder="e.g. October Promos" />
       </div>
 
@@ -954,7 +1006,7 @@
 
       <div class="ml-send-modal-footer">
         <button class="btn-ghost" onclick="mlCloseSendModal()">Cancel</button>
-        <button id="mlSendConfirmBtn" onclick="mlConfirmSend()">Send to Screen</button>
+        <button id="mlSendConfirmBtn" onclick="mlConfirmSend()">Push to Screen</button>
       </div>
     </div>
   </div>
