@@ -1,5 +1,5 @@
 (function () {
-  const { initializeFirebase, switchView: _switchView, createAuthManager, createScreensModule, createPlaylistsModule, createGroupsModule, createLiveViewModule, createLiveWallModule, createSchedulerModule } = window.AppModules;
+  const { initializeFirebase, switchView: _switchView, createAuthManager, createScreensModule, createPlaylistsModule, createGroupsModule, createLiveViewModule, createLiveWallModule, createSchedulerModule, createAnalyticsModule, createMediaLibraryModule } = window.AppModules;
 
   const { auth, db } = initializeFirebase();
   const screens = createScreensModule({ db });
@@ -8,8 +8,10 @@
   const liveview = createLiveViewModule ? createLiveViewModule() : null;
   const liveWall = createLiveWallModule ? createLiveWallModule({ db }) : null;
   const scheduler = createSchedulerModule ? createSchedulerModule({ db }) : null;
+  const analytics = createAnalyticsModule ? createAnalyticsModule({ db }) : null;
+  const mediaLibrary = createMediaLibraryModule ? createMediaLibraryModule({ db }) : null;
 
-  // Wrap switchView so we mount/unmount Live Wall and Scheduler automatically
+  // Wrap switchView so we mount/unmount Live Wall, Scheduler, and Analytics automatically
   let _currentView = '';
   function switchView(viewId, btn) {
     // Tear down the previous view
@@ -30,6 +32,13 @@
     if (viewId === 'schedulerView' && scheduler) {
       scheduler.initSchedulerView(); // Re-init starts the interval fresh
     }
+    if (viewId === 'analyticsView' && analytics) {
+      analytics.initAnalyticsFilters();
+      analytics.loadAnalytics();
+    }
+    if (viewId === 'mediaLibraryView' && mediaLibrary) {
+      mediaLibrary.renderGrid();
+    }
   }
 
   const authManager = createAuthManager(auth, (user) => {
@@ -38,8 +47,20 @@
       playlists.watchPlaylists();
       groups.watchGroups();
       if (scheduler) scheduler.watchScheduler();
+      if (mediaLibrary) mediaLibrary.watchMedia();
+      if (analytics) {
+        analytics.initAnalyticsFilters();
+      }
     }
   });
+
+  if (analytics) {
+    window.AppModules.loadAnalytics = analytics.loadAnalytics;
+    window.AppModules.setAnalyticsDatePreset = analytics.setAnalyticsDatePreset;
+    window.AppModules.setAnalyticsTab = analytics.setAnalyticsTab;
+    window.AppModules.generateSampleAnalyticsData = analytics.generateSampleAnalyticsData;
+    window.AppModules.exportAnalyticsCSV = analytics.exportAnalyticsCSV;
+  }
 
   window.switchView = switchView;
   window.login = authManager.login;
@@ -73,6 +94,7 @@
   window.closeMassLaunchModal = screens.closeMassLaunchModal;
   window.executeMassLaunch = screens.executeMassLaunch;
   window.launchToAllScreens = screens.launchToAllScreens;
+  window.onAssignedPlaylistToggle = screens.onAssignedPlaylistToggle;
   window.editPlaylist = playlists.editPlaylist;
   window.deletePlaylist = playlists.deletePlaylist;
   window.addPlaylistItemRow = playlists.addPlaylistItemRow;

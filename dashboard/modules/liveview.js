@@ -205,6 +205,8 @@
       channel.on("broadcast", { event: "offer" }, async (payload) => {
         try {
           if (payload.payload.viewerId && payload.payload.viewerId !== viewerId) return;
+          // normal-camera route sends correct colours; only the USB route needs the red/blue flip
+          if (videoEl) videoEl.style.filter = payload.payload.cam === "camera2" ? "none" : "";
           console.log("Received offer:", payload);
           let offer = payload.payload.sdp || payload.payload.offer;
           if (typeof offer === 'string') {

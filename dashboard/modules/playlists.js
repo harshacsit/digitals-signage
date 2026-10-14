@@ -58,7 +58,11 @@
         return `
           <tr>
             <td>
-              <div class="fw-bold text-dark fs-6 mb-1">${p.name}</div>
+              <div class="fw-bold text-dark fs-6 mb-1">${p.name}
+                ${p.schedule && p.schedule.enabled
+                  ? `<span class="badge bg-info-subtle text-dark border ms-2">Scheduled ${AppModules.hhmm24To12h ? AppModules.hhmm24To12h(p.schedule.start) : p.schedule.start} – ${AppModules.hhmm24To12h ? AppModules.hhmm24To12h(p.schedule.end) : p.schedule.end}</span>`
+                  : `<span class="badge bg-secondary-subtle text-dark border ms-2">Always on</span>`}
+              </div>
               <div class="d-flex flex-wrap gap-1 align-items-center">${itemBadges || '<span class="text-muted small">No items</span>'}</div>
             </td>
             <td><span class="badge bg-secondary-subtle text-dark border px-2 py-1">${items.length} item${items.length === 1 ? '' : 's'}</span></td>
@@ -78,6 +82,7 @@
 
       appState.editingPlaylistId = id;
       document.getElementById("playlistName").value = playlist.name;
+      loadPlaylistSchedule(playlist.schedule);
       document.getElementById("playlistItems").innerHTML = "";
       (playlist.items || []).forEach((item) => addPlaylistItemRow(item));
       document.getElementById("playlistName").scrollIntoView({ behavior: "smooth" });
@@ -359,14 +364,17 @@
         isLive: row.querySelector(".itemIsLive").checked
       }));
 
+      const schedule = readPlaylistSchedule();
+
       const resetForm = () => {
         appState.editingPlaylistId = null;
         document.getElementById("playlistName").value = "";
         document.getElementById("playlistItems").innerHTML = "";
+        resetPlaylistSchedule();
       };
 
       if (appState.editingPlaylistId) {
-        db.collection("playlists").doc(appState.editingPlaylistId).update({ name, items })
+        db.collection("playlists").doc(appState.editingPlaylistId).update({ name, items, schedule })
           .then(() => {
             resetForm();
             if (AppModules.showToast) AppModules.showToast("Playlist updated successfully!", "success");
@@ -378,6 +386,7 @@
         db.collection("playlists").add({
           name,
           items,
+          schedule,
           createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
         }).then(() => {
           resetForm();
@@ -387,6 +396,50 @@
         });
       }
     }
+
+    // ===== Playlist schedule (new) =====
+    function toggleScheduleInputs(on) {
+      const box = document.getElementById("playlistScheduleOptions");
+      if (box) box.style.display = on ? "block" : "none";
+    }
+
+    function resetPlaylistSchedule() {
+      const cb = document.getElementById("playlistScheduleEnabled");
+      if (cb) cb.checked = false;
+      toggleScheduleInputs(false);
+      const st = document.getElementById("playlistScheduleStart");
+      const en = document.getElementById("playlistScheduleEnd");
+      if (st) st.value = "09:00";
+      if (en) en.value = "17:00";
+      document.querySelectorAll(".playlistScheduleDay").forEach((d) => { d.checked = true; });
+    }
+
+    function loadPlaylistSchedule(sched) {
+      resetPlaylistSchedule();
+      if (!sched || sched.enabled !== true) return;
+      document.getElementById("playlistScheduleEnabled").checked = true;
+      toggleScheduleInputs(true);
+      document.getElementById("playlistScheduleStart").value = sched.start || "09:00";
+      document.getElementById("playlistScheduleEnd").value = sched.end || "17:00";
+      const days = Array.isArray(sched.days) && sched.days.length ? sched.days : [0, 1, 2, 3, 4, 5, 6];
+      document.querySelectorAll(".playlistScheduleDay").forEach((d) => {
+        d.checked = days.includes(parseInt(d.value, 10));
+      });
+    }
+
+    function readPlaylistSchedule() {
+      const cb = document.getElementById("playlistScheduleEnabled");
+      if (!cb || !cb.checked) return null;
+      const start = document.getElementById("playlistScheduleStart").value;
+      const end = document.getElementById("playlistScheduleEnd").value;
+      if (!start || !end) return null;
+      let days = Array.from(document.querySelectorAll(".playlistScheduleDay:checked"))
+        .map((d) => parseInt(d.value, 10));
+      if (days.length === 7) days = [];          // every day
+      return { enabled: true, start: start, end: end, days: days };
+    }
+
+    window.toggleScheduleInputs = toggleScheduleInputs;
 
     return {
       watchPlaylists,

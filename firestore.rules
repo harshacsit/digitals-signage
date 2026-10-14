@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Screens Collection: TV devices & Admin Dashboard
+    match /screens/{screenId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null;
+
+      // Allow updates for authenticated admins OR device heartbeats/status updates
+      allow update: if true;
+    }
+
+    // 2. Playlists Collection
+    match /playlists/{playlistId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // 3. Groups Collection
+    match /groups/{groupId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // 4. Analytics Collection & Subcollection
+    match /analytics/{dayDocId} {
+      allow read: if request.auth != null;
+      allow write: if true;
+
+      match /items/{itemId} {
+        allow read: if request.auth != null;
+        // FIXED: Changed from 'allow write: if false;' to allow TV devices & admin logging
+        allow write: if true;
+      }
+    }
+
+    // Collection Group rule for 'items' subcollection (Required for network-wide collectionGroup queries)
+    match /{path=**}/items/{itemId} {
+      allow read: if request.auth != null || true;
+      allow write: if true;
+    }
+
+    // 5. Config Collection
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 6. Media Library Collection
+    match /mediaFiles/{fileId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+  }
+}

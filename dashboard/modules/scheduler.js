@@ -468,6 +468,7 @@
         if (!pending && enabled && activeSlot && activeSlot.playlistId && activeSlot.playlistId !== s.currentPlaylist) {
           db.collection('screens').doc(id).update({
             currentPlaylist: String(activeSlot.playlistId),
+            assignedPlaylists: [],
             schedulerLastPushed: window.firebase && window.firebase.firestore ? window.firebase.firestore.FieldValue.serverTimestamp() : new Date()
           }).catch(err => console.error(`[Scheduler Auto-Push Error] Screen ${id}:`, err));
         }
@@ -535,6 +536,7 @@
       if (activeSlot && activeSlot.playlistId) {
         updateData.currentPlaylist = String(activeSlot.playlistId);
       }
+      if (enabled) updateData.assignedPlaylists = [];
 
       db.collection('screens').doc(screenId).update(updateData)
         .then(() => {

@@ -109,6 +109,14 @@
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 10.5v-7z" stroke="currentColor" stroke-width="1.4"/><path d="M6 14h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 12v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><polygon points="6,5.5 11,8.5 6,11.5" fill="currentColor"/></svg>
             <span class="nav-label">Mass Launch</span>
           </button>
+          <button class="navBtn" id="analyticsNavBtn" onclick="switchView('analyticsView', this)" title="Analytics">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><path d="M2 13h12M4 13V8M8 13V4M12 13V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="nav-label">Analytics</span>
+          </button>
+          <button class="navBtn" id="mediaLibNavBtn" onclick="switchView('mediaLibraryView', this)" title="Media Library">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="nav-icon"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>
+            <span class="nav-label">Media Library</span>
+          </button>
         </nav>
 
         <div class="px-2 pb-3">
@@ -449,11 +457,87 @@
                 <input id="playlistName" class="form-control" placeholder="Enter name..." />
               </div>
             </div>
+            <div class="p-3 bg-light rounded border mb-3">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input cursor-pointer" type="checkbox" id="playlistScheduleEnabled"
+                       onchange="toggleScheduleInputs(this.checked)" />
+                <label class="form-check-label fw-semibold" for="playlistScheduleEnabled">
+                  Schedule this playlist (off = always-on default playlist)
+                </label>
+              </div>
+              <div id="playlistScheduleOptions" style="display:none">
+                <div class="row g-3 mb-2">
+                  <div class="col-6 col-md-3">
+                    <label class="form-label small">Start time</label>
+                    <input type="time" id="playlistScheduleStart" class="form-control form-control-sm" value="09:00" />
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label small">End time</label>
+                    <input type="time" id="playlistScheduleEnd" class="form-control form-control-sm" value="17:00" />
+                  </div>
+                </div>
+                <div class="d-flex flex-wrap gap-3 small">
+                  <label><input type="checkbox" class="playlistScheduleDay" value="1" checked> Mon</label>
+                  <label><input type="checkbox" class="playlistScheduleDay" value="2" checked> Tue</label>
+                  <label><input type="checkbox" class="playlistScheduleDay" value="3" checked> Wed</label>
+                  <label><input type="checkbox" class="playlistScheduleDay" value="4" checked> Thu</label>
+                  <label><input type="checkbox" class="playlistScheduleDay" value="5" checked> Fri</label>
+                  <label><input type="checkbox" class="playlistScheduleDay" value="6" checked> Sat</label>
+                  <label><input type="checkbox" class="playlistScheduleDay" value="0" checked> Sun</label>
+                </div>
+                <div class="text-muted small mt-2">End earlier than start (for example 22:00 to 06:00) runs overnight.</div>
+              </div>
+            </div>
             <div id="playlistItems"></div>
             <div class="d-flex gap-2 mt-3 align-items-center">
               <button class="btn-ghost" onclick="addPlaylistItemRow()">Add item</button>
               <button class="btn btn-primary-brand" onclick="savePlaylist()">Save playlist</button>
             </div>
+          </div>
+        </section>
+
+        <!-- MEDIA LIBRARY -->
+        <section id="mediaLibraryView" class="view">
+          <div class="pageHeader">
+            <div>
+              <h1>Media Library</h1>
+              <div class="sub">Central store for all your media. Upload once, reuse in any playlist.</div>
+            </div>
+            <div class="header-actions">
+              <button class="ml-upload-btn" onclick="mlTriggerUpload()">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 4l3-3 3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 10v1.5A1.5 1.5 0 0 0 2.5 13h9a1.5 1.5 0 0 0 1.5-1.5V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                Upload Media
+              </button>
+              <input type="file" id="mlFileInput" accept="video/*,image/*" multiple style="display:none" onchange="mlOnFilesPicked(this.files)" />
+            </div>
+          </div>
+
+          <div class="card">
+            <!-- Toolbar: filters + search + actions -->
+            <div class="ml-toolbar">
+              <div class="ml-filter-tabs">
+                <button class="ml-filter-btn active" data-filter="all" onclick="mlSetFilter('all')">
+                  All&nbsp;<span id="mlBadgeAll" class="ml-filter-badge">0</span>
+                </button>
+                <button class="ml-filter-btn" data-filter="image" onclick="mlSetFilter('image')">
+                  Images&nbsp;<span id="mlBadgeImage" class="ml-filter-badge">0</span>
+                </button>
+                <button class="ml-filter-btn" data-filter="video" onclick="mlSetFilter('video')">
+                  Videos&nbsp;<span id="mlBadgeVideo" class="ml-filter-badge">0</span>
+                </button>
+              </div>
+              <input class="ml-search" type="search" placeholder="Search files…" oninput="mlOnSearch(this.value)" />
+              <div class="ml-toolbar-actions">
+                <div class="ml-sel-actions">
+                  <button class="ml-sel-all" onclick="mlSelectAll()">Select all</button>
+                  <button class="ml-sel-clear" onclick="mlClearSelection()">Deselect</button>
+                </div>
+                <button id="mlSendBtn" onclick="mlOpenSendModal()" disabled>Send to Screen</button>
+              </div>
+            </div>
+
+            <!-- Media grid -->
+            <div id="mlGrid"></div>
           </div>
         </section>
 
@@ -555,6 +639,226 @@
           </div>
         </section>
 
+        <!-- ANALYTICS MODULE -->
+        <section id="analyticsView" class="view">
+          <div class="pageHeader flex-wrap gap-3">
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <h1 id="analyticsTotalHeader" class="mb-0">Playback Analytics</h1>
+                <span id="analyticsDemoBadge" class="badge bg-warning text-dark border border-warning-subtle" style="display:none; font-weight:600; font-size:11px;">SAMPLE DATA</span>
+              </div>
+              <div class="sub" id="analyticsSubHeader">Track ad playtimes, playlist airtime, and TV screen performance.</div>
+            </div>
+
+            <!-- Controls Bar -->
+            <div class="header-actions flex-wrap gap-2">
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary analytics-preset-btn active" data-preset="today" onclick="AppModules.setAnalyticsDatePreset('today')">Today</button>
+                <button type="button" class="btn btn-outline-secondary analytics-preset-btn" data-preset="yesterday" onclick="AppModules.setAnalyticsDatePreset('yesterday')">Yesterday</button>
+              </div>
+
+              <input type="date" id="analyticsDateFilter" class="form-control form-control-sm" style="width: auto;" onchange="AppModules.loadAnalytics()" />
+
+              <select id="analyticsScreenFilter" class="form-select form-select-sm" style="min-width: 170px; max-width: 240px;" onchange="AppModules.loadAnalytics()"></select>
+
+              <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="AppModules.exportAnalyticsCSV()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI STAT CARDS -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-3 col-6">
+              <div class="stat-card">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <span class="stat-card-title mb-0">Total Playtime</span>
+                  <div class="stat-card-icon-wrap stat-icon-green">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                </div>
+                <div class="stat-card-value stat-value-green" id="analyticsStatTotalTime">0s</div>
+                <div class="stat-card-sub">Airtime across screens</div>
+              </div>
+            </div>
+
+            <div class="col-md-3 col-6">
+              <div class="stat-card">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <span class="stat-card-title mb-0">Ad Impressions</span>
+                  <div class="stat-card-icon-wrap stat-icon-slate">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  </div>
+                </div>
+                <div class="stat-card-value" id="analyticsStatTotalPlays">0</div>
+                <div class="stat-card-sub">Total ad plays</div>
+              </div>
+            </div>
+
+            <div class="col-md-3 col-6">
+              <div class="stat-card">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <span class="stat-card-title mb-0">Active TV Screens</span>
+                  <div class="stat-card-icon-wrap stat-icon-amber">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                  </div>
+                </div>
+                <div class="stat-card-value stat-value-amber" id="analyticsStatActiveTvs">0</div>
+                <div class="stat-card-sub">Broadcasting devices</div>
+              </div>
+            </div>
+
+            <div class="col-md-3 col-6">
+              <div class="stat-card">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <span class="stat-card-title mb-0">Top Playlist</span>
+                  <div class="stat-card-icon-wrap stat-icon-slate">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4h12M2 8h8M2 12h5"/><circle cx="13" cy="11" r="2.3"/></svg>
+                  </div>
+                </div>
+                <div class="stat-card-value text-truncate" style="font-size: 18px;" id="analyticsStatTopPlaylist">None</div>
+                <div class="stat-card-sub">Highest airtime playlist</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ANALYTICS TAB NAVIGATION -->
+          <div class="d-flex align-items-center gap-2 mb-3 border-bottom pb-2">
+            <button class="filter-pill analytics-tab-btn active" data-tab="overview" onclick="AppModules.setAnalyticsTab('overview')">
+              Overview
+            </button>
+            <button class="filter-pill analytics-tab-btn" data-tab="playlists" onclick="AppModules.setAnalyticsTab('playlists')">
+              Playlist Airtime
+            </button>
+            <button class="filter-pill analytics-tab-btn" data-tab="ads" onclick="AppModules.setAnalyticsTab('ads')">
+              Ad Airtime
+            </button>
+            <button class="filter-pill analytics-tab-btn" data-tab="tv-breakdown" onclick="AppModules.setAnalyticsTab('tv-breakdown')">
+              Per-TV Breakdown
+            </button>
+          </div>
+
+          <!-- TAB 1: OVERVIEW -->
+          <div id="analyticsOverviewSection">
+            <div class="row g-4">
+              <div class="col-md-6">
+                <div class="card p-0 overflow-hidden h-100">
+                  <div class="card-table-header d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0 h6">Top Playlists by Duration</h2>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 13px;">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Playlist Name</th>
+                          <th>Plays</th>
+                          <th class="text-end">Total Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody id="analyticsOverviewPlaylistsBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <div class="card p-0 overflow-hidden h-100">
+                  <div class="card-table-header d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0 h6">Top Ads by Duration</h2>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 13px;">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Ad Title / URL</th>
+                          <th>Plays</th>
+                          <th class="text-end">Total Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody id="analyticsOverviewAdsBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: PLAYLIST AIRTIME -->
+          <div id="analyticsPlaylistsSection" style="display: none;">
+            <div class="card p-0 overflow-hidden">
+              <div class="card-table-header">
+                <h2 class="mb-0 h6 fw-bold">Playlist Duration &amp; Airtime Share</h2>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Playlist Name</th>
+                      <th>Content Ads</th>
+                      <th>Broadcasting TVs</th>
+                      <th>Total Plays</th>
+                      <th>Total Duration</th>
+                      <th>Airtime Share %</th>
+                    </tr>
+                  </thead>
+                  <tbody id="analyticsPlaylistsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: AD AIRTIME -->
+          <div id="analyticsAdsSection" style="display: none;">
+            <div class="card p-0 overflow-hidden">
+              <div class="card-table-header">
+                <h2 class="mb-0 h6 fw-bold">Individual Ad Playtime &amp; Impressions</h2>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Ad Title / URL</th>
+                      <th>Type</th>
+                      <th>Playlist</th>
+                      <th>Total Plays</th>
+                      <th>Avg Duration</th>
+                      <th>Total Duration</th>
+                      <th>Airtime Share %</th>
+                    </tr>
+                  </thead>
+                  <tbody id="analyticsAdsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: PER-TV BREAKDOWN -->
+          <div id="analyticsTvSection" style="display: none;">
+            <div class="card p-0 overflow-hidden">
+              <div class="card-table-header">
+                <h2 class="mb-0 h6 fw-bold">TV Screen Playtime Breakdown</h2>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>TV Screen Name</th>
+                      <th>Screen ID</th>
+                      <th>Top Playlist</th>
+                      <th>Total Plays</th>
+                      <th>Total Duration</th>
+                      <th>Network Share %</th>
+                    </tr>
+                  </thead>
+                  <tbody id="analyticsTvBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
       </main>
     </div>
   </div>
@@ -618,7 +922,42 @@
   <script src="modules/liveview.js"></script>
   <script src="modules/livewall.js"></script>
   <script src="modules/scheduler.js"></script>
+  <script src="modules/analytics.js"></script>
+  <script src="modules/medialibrary.js"></script>
   <script src="app.js"></script>
+
+  <!-- MEDIA LIBRARY — Send to Screen modal -->
+  <div id="mlSendModal">
+    <div class="ml-send-modal-card">
+      <div class="ml-send-modal-header">
+        <h2>Send to Screen</h2>
+        <button class="ml-modal-close" onclick="mlCloseSendModal()">&times;</button>
+      </div>
+
+      <!-- Selected files chips -->
+      <div>
+        <span class="ml-send-label">Selected files</span>
+        <div id="mlSendChips" class="ml-chips-wrap"></div>
+      </div>
+
+      <!-- Playlist name -->
+      <div>
+        <label class="ml-send-label" for="mlSendPlaylistName">New playlist name</label>
+        <input id="mlSendPlaylistName" class="ml-send-input" type="text" placeholder="e.g. October Promos" />
+      </div>
+
+      <!-- Screen picker -->
+      <div>
+        <span class="ml-send-label">Push to screens</span>
+        <div id="mlSendScreenList" class="ml-screen-list"></div>
+      </div>
+
+      <div class="ml-send-modal-footer">
+        <button class="btn-ghost" onclick="mlCloseSendModal()">Cancel</button>
+        <button id="mlSendConfirmBtn" onclick="mlConfirmSend()">Send to Screen</button>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>

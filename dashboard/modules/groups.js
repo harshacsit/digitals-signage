@@ -512,7 +512,8 @@
         } else {
           batch.update(screenRef, {
             ...commonUpdate,
-            currentPlaylist: currentPlaylist || null
+            currentPlaylist: currentPlaylist || null,
+            assignedPlaylists: currentPlaylist ? [currentPlaylist] : []
           });
         }
       });

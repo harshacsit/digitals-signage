@@ -500,6 +500,16 @@
       `;
     }
 
+    function cacheLineHtml(s) {
+      const c = s && s.cacheStatus;
+      if (!c) return "";
+      const ms = getTimestampMs(c.at);
+      const when = ms ? formatLastSeenTime(ms) : "";
+      return c.failed > 0
+        ? `<div class="small text-warning">Cache ${c.ok}/${c.ok + c.failed} &middot; ${when}</div>`
+        : `<div class="small text-success">Cached &#10003; ${c.ok} items &middot; ${when}</div>`;
+    }
+
     function renderScreenRow(docId, s, forceLayoutUpdate = false) {
       const lastSeenMs = getTimestampMs(s.lastSeen, docId);
       const isOnline = isScreenOnline(lastSeenMs);
@@ -546,6 +556,7 @@
               <span class="dot ${isOnline ? "online" : "offline"}"></span>
               ${isOnline ? "Online" : "Offline"}
             </span>
+            ${cacheLineHtml(s)}
           </td>
           <td class="cell-name">${nameCellHtml(docId, s)}</td>
           <td class="cell-playlist">${playlistDropdown(docId, s.currentPlaylist)}</td>
@@ -586,6 +597,7 @@
             <span class="dot ${isOnline ? "online" : "offline"}"></span>
             ${isOnline ? "Online" : "Offline"}
           </span>
+          ${cacheLineHtml(s)}
         `;
       }
 
@@ -695,7 +707,46 @@
       </select>`;
     }
 
+    function assignedOf(s) {
+      if (Array.isArray(s && s.assignedPlaylists) && s.assignedPlaylists.length) return s.assignedPlaylists;
+      return s && s.currentPlaylist ? [s.currentPlaylist] : [];
+    }
+
     function playlistDropdown(screenId, currentPlaylistId) {
+      const s = appState.screenDataCache[screenId] || {};
+      // old Auto Scheduler on: keep the old locked dropdown exactly as before
+      if (s.schedulerEnabled === true) return legacyPlaylistDropdown(screenId, currentPlaylistId);
+
+      const pending = appState.pendingChanges[screenId] && appState.pendingChanges[screenId].assignedPlaylists;
+      const selected = pending !== undefined ? pending : assignedOf(s);
+
+      const rows = appState.playlistsCache.map((p) => {
+        const when = p.schedule && p.schedule.enabled
+          ? ` <span class="text-muted small">(${hhmm24To12h(p.schedule.start)}–${hhmm24To12h(p.schedule.end)})</span>`
+          : ` <span class="text-muted small">(always)</span>`;
+        return `<label class="d-flex align-items-center gap-2 small mb-1 cursor-pointer">
+          <input type="checkbox" class="assignedPlaylistCb" value="${p.id}" ${selected.includes(p.id) ? "checked" : ""}
+            onchange="onAssignedPlaylistToggle('${screenId}')" />
+          <span>${p.name}${when}</span></label>`;
+      }).join("") || `<span class="text-muted small">No playlists yet</span>`;
+
+      return `<details class="assignedPlaylistBox">
+        <summary class="small fw-semibold cursor-pointer">${selected.length} playlist${selected.length === 1 ? "" : "s"} selected</summary>
+        <div class="pt-2" style="max-height:170px;overflow:auto">${rows}</div>
+      </details>`;
+    }
+
+    function onAssignedPlaylistToggle(screenId) {
+      const tr = appState.screenRows[screenId];
+      if (!tr) return;
+      const ids = Array.from(tr.querySelectorAll(".assignedPlaylistCb:checked")).map((cb) => cb.value);
+      const s = appState.screenDataCache[screenId] || {};
+      setPendingField(screenId, "assignedPlaylists", ids, assignedOf(s));
+      const sum = tr.querySelector(".assignedPlaylistBox summary");
+      if (sum) sum.textContent = `${ids.length} playlist${ids.length === 1 ? "" : "s"} selected`;
+    }
+
+    function legacyPlaylistDropdown(screenId, currentPlaylistId) {
       const s = appState.screenDataCache[screenId] || {};
       const isSchedActive = s.schedulerEnabled === true;
       const pending = appState.pendingChanges[screenId]?.playlist;
@@ -873,6 +924,15 @@
       const update = {};
       if (pending.layoutMode !== undefined) update.layoutMode = pending.layoutMode;
       if (pending.playlist !== undefined) update.currentPlaylist = pending.playlist || null;
+      if (pending.assignedPlaylists !== undefined) {
+        const ids = pending.assignedPlaylists;
+        update.assignedPlaylists = ids;
+        // keep currentPlaylist for old APKs: first playlist with no schedule, else the first one
+        const byId = {};
+        appState.playlistsCache.forEach((p) => { byId[p.id] = p; });
+        update.currentPlaylist =
+          ids.find((id) => !(byId[id] && byId[id].schedule && byId[id].schedule.enabled)) || ids[0] || null;
+      }
       if (pending.bottomWebUrl !== undefined) update.bottomWebUrl = pending.bottomWebUrl || null;
       if (pending.splitRatio !== undefined) update.splitRatio = pending.splitRatio;
       if (pending.rotation !== undefined) update.rotation = pending.rotation;
@@ -1245,6 +1305,11 @@
             rotation: rotation
           };
 
+          // only reset the checklist when the playlist was actually changed in Mass launch
+          if ((playlistId || "") !== ((s && s.currentPlaylist) || "")) {
+            update.assignedPlaylists = playlistId ? [playlistId] : [];
+          }
+
           batch.update(db.collection("screens").doc(screenId), update);
           delete appState.pendingChanges[screenId];
           delete massLaunchStagingCache[screenId];
@@ -1311,6 +1376,7 @@
       onBottomWebUrlChange,
       onSplitRatioChange,
       onRotationChange,
+      onAssignedPlaylistToggle,
       pushChanges,
       removeScreen,
       populateMassLaunchPlaylists,
